@@ -1,8 +1,8 @@
 num_gpu = 1
 expname = blurcoffee1_full_crf_wodepth_woprior
-basedir = /apdcephfs/private_leema/data/NeRF/logs_exp
-datadir = /apdcephfs/private_leema/data/NeRF/blurcoffee
-tbdir = /apdcephfs/private_leema/data/NeRF/tensorboard_exp
+basedir = ./logs/
+datadir = ./data/real_camera_motion_blur/blurcoffee
+tbdir = ./tb_logs/
 dataset_type = llff
 
 factor = 4

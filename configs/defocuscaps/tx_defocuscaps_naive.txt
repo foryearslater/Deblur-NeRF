@@ -1,8 +1,8 @@
 num_gpu = 1
 expname = defocuscaps1_naive
-basedir = /apdcephfs/private_leema/data/NeRF/logs_exp
-datadir = /apdcephfs/private_leema/data/NeRF/defocuscaps
-tbdir = /apdcephfs/private_leema/data/NeRF/tensorboard_exp
+basedir = ./logs/
+datadir = ./data/real_defocus_blur/defocuscaps
+tbdir = ./tb_logs/
 dataset_type = llff
 
 factor = 4

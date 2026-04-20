@@ -1,8 +1,8 @@
 num_gpu = 1
 expname = blurfactory1_full_wodepth_woprior
-basedir = /apdcephfs/private_leema/data/NeRF/logs_exp
-datadir = /apdcephfs/private_leema/data/NeRF/blurfactory
-tbdir = /apdcephfs/private_leema/data/NeRF/tensorboard_exp
+basedir = ./logs/
+datadir = ./data/synthetic_camera_motion_blur/blurfactory
+tbdir = ./tb_logs/
 dataset_type = llff
 
 factor = 1

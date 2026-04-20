@@ -1,8 +1,8 @@
 num_gpu = 1
 expname = blurheron1_full_crf_wodepth_woprior
-basedir = /apdcephfs/private_leema/data/NeRF/logs_exp
-datadir = /apdcephfs/private_leema/data/NeRF/blurheron
-tbdir = /apdcephfs/private_leema/data/NeRF/tensorboard_exp
+basedir = ./logs/
+datadir = ./data/real_camera_motion_blur/blurheron
+tbdir = ./tb_logs/
 dataset_type = llff
 
 factor = 4

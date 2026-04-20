@@ -1,8 +1,8 @@
 num_gpu = 1
 expname = defocuscups1_full_wodepth_woprior
-basedir = /apdcephfs/private_leema/data/NeRF/logs_exp
-datadir = /apdcephfs/private_leema/data/NeRF/defocuscups
-tbdir = /apdcephfs/private_leema/data/NeRF/tensorboard_exp
+basedir = ./logs/
+datadir = ./data/real_defocus_blur/defocuscups
+tbdir = ./tb_logs/
 dataset_type = llff
 
 factor = 4

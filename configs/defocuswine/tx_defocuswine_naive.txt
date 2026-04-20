@@ -1,8 +1,8 @@
 num_gpu = 1
 expname = defocuswine1_naive
-basedir = /apdcephfs/private_leema/data/NeRF/logs_exp
-datadir = /apdcephfs/private_leema/data/NeRF/defocuswine
-tbdir = /apdcephfs/private_leema/data/NeRF/tensorboard_exp
+basedir = ./logs/
+datadir = ./data/synthetic_defocus_blur/defocuswine
+tbdir = ./tb_logs/
 dataset_type = llff
 
 factor = 1

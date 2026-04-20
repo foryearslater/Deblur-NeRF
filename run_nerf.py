@@ -13,6 +13,16 @@ from metrics import compute_img_metric
 # np.random.seed(0)
 DEBUG = False
 
+# 全局设备设置
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+print(f"[INFO] 使用设备: {DEVICE}")
+
+def to_device(tensor):
+    """助手函数：将张量移到全局设备"""
+    if isinstance(tensor, torch.Tensor):
+        return tensor.to(DEVICE)
+    return tensor
+
 
 def config_parser():
     import configargparse
@@ -381,8 +391,8 @@ def train():
     global_step = start
 
     # Move testing data to GPU
-    render_poses = torch.tensor(render_poses[:, :3, :4]).cuda()
-    nerf = nerf.cuda()
+    render_poses = torch.tensor(render_poses[:, :3, :4]).to(DEVICE)
+    nerf = nerf.to(DEVICE)
     # Short circuit if only rendering out from trained model
     if args.render_only:
         print('RENDER ONLY')
@@ -486,11 +496,11 @@ def train():
     i_batch = 0
 
     # Move training data to GPU
-    images = torch.tensor(images).cuda()
-    imagesf = torch.tensor(imagesf).cuda()
+    images = torch.tensor(images).to(DEVICE)
+    imagesf = torch.tensor(imagesf).to(DEVICE)
 
-    poses = torch.tensor(poses).cuda()
-    train_datas = {k: torch.tensor(v).cuda() for k, v in train_datas.items()}
+    poses = torch.tensor(poses).to(DEVICE)
+    train_datas = {k: torch.tensor(v).to(DEVICE) for k, v in train_datas.items()}
 
     N_iters = args.N_iters + 1
     print('Begin')
@@ -601,7 +611,7 @@ def train():
             print(f"Append {dummy_num} # of poses to fill all the GPUs")
             with torch.no_grad():
                 nerf.eval()
-                rgbs, _ = nerf(H, W, K, args.chunk, poses=torch.cat([poses, dummy_poses], dim=0).cuda(),
+                rgbs, _ = nerf(H, W, K, args.chunk, poses=torch.cat([poses, dummy_poses], dim=0).to(DEVICE),
                                render_kwargs=render_kwargs_test)
                 rgbs = rgbs[:len(rgbs) - dummy_num]
                 rgbs_save = rgbs  # (rgbs - rgbs.min()) / (rgbs.max() - rgbs.min())
@@ -646,5 +656,4 @@ def train():
 
 
 if __name__ == '__main__':
-    torch.set_default_tensor_type('torch.cuda.FloatTensor')
     train()

@@ -94,10 +94,8 @@ def _load_data(basedir, factor=None, width=None, height=None, load_imgs=True):
         return poses, bds
 
     def imread(f):
-        if f.endswith('png'):
-            return imageio.imread(f, ignoregamma=True)
-        else:
-            return imageio.imread(f)
+        # imageio v2.13+ 移除了 ignoregamma 参数，直接读取即可
+        return imageio.imread(f)
 
     imgs = imgs = [imread(f)[..., :3] / 255. for f in imgfiles]
     imgs = np.stack(imgs, -1)

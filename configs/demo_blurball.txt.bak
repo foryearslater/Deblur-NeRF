@@ -1,12 +1,11 @@
 num_gpu = 1
-expname = blurheron1_full_wodepth_woprior
-basedir = ./logs/
-datadir = ./data/real_camera_motion_blur/blurheron
-tbdir = ./tb_logs/
+expname = blurball_full
+basedir = <specify_the_path_to_save_weights_and_logs_here>
+datadir = <specify_the_data_path_here>
+tbdir = <specify_the_path_to_save_tensorboard_here>
 dataset_type = llff
-
 factor = 4
-llffhold = 8
+llffhold = 7
 
 N_rand = 1024
 N_samples = 64
@@ -20,8 +19,6 @@ raw_noise_std = 1e0
 rgb_activate = sigmoid
 
 kernel_start_iter = 1200
-# kernel_prior_weight = 0.1
-# prior_start_iter = 15000
 kernel_align_weight = 0.1
 align_start_iter = 0
 align_end_iter = 180000
@@ -43,6 +40,4 @@ kernel_shortcut
 kernel_spatialvariant_trans
 tone_mapping_type = gamma
 
-render_rmnearplane = 80
-render_focuspoint_scale = 3.
-render_radius_scale = 0.9
+render_rmnearplane = 10

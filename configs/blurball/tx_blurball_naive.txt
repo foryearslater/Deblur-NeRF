@@ -1,8 +1,8 @@
 num_gpu = 1
 expname = blurball1_naive
-basedir = /apdcephfs/private_leema/data/NeRF/logs_exp
-datadir = /apdcephfs/private_leema/data/NeRF/blurball
-tbdir = /apdcephfs/private_leema/data/NeRF/tensorboard_exp
+basedir = ./logs/
+datadir = ./data/real_camera_motion_blur/blurball
+tbdir = ./tb_logs/
 dataset_type = llff
 
 factor = 4
