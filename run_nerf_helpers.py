@@ -7,7 +7,13 @@ import numpy as np
 
 # Misc
 img2mse = lambda x, y: torch.mean((x - y) ** 2)
-mse2psnr = lambda x: -10. * torch.log(x) / torch.log(torch.Tensor([10.]))
+
+
+def mse2psnr(x):
+    x = torch.clamp_min(x, 1e-10)
+    return -10. * torch.log10(x)
+
+
 to8b = lambda x: (255 * np.clip(x, 0, 1)).astype(np.uint8)
 
 HALF_PIX = 0.5
@@ -70,9 +76,10 @@ def visualize_kernel(H, W, K, nerf: nn.Module, img_idx=1, x=1, y=1, depth=0.5, c
     if isinstance(nerf, nn.DataParallel):
         nerf = nerf.module
 
-    nerf.cuda()
+    device = next(nerf.parameters()).device
+    nerf.to(device)
     ray_info = {}
-    ray_info["images_idx"] = torch.tensor(img_idx).type(torch.int64).cuda().reshape(-1, 1).expand(100, 1)
+    ray_info["images_idx"] = torch.tensor(img_idx, dtype=torch.int64, device=device).reshape(-1, 1).expand(100, 1)
     ray_info["rays_x"] = torch.ones_like(ray_info["images_idx"]) * x
     ray_info["rays_y"] = torch.ones_like(ray_info["images_idx"]) * y
     ray_info["ray_depth"] = torch.ones_like(ray_info["rays_x"]) * depth
@@ -101,9 +108,10 @@ def visualize_itsample(H, W, K, nerf: nn.Module, x=1, y=1, img_idx=1, ptnum=1000
     if isinstance(nerf, nn.DataParallel):
         nerf = nerf.module
 
-    nerf.cuda()
+    device = next(nerf.parameters()).device
+    nerf.to(device)
     ray_info = {}
-    ray_info["images_idx"] = torch.tensor(img_idx).type(torch.int64).cuda().reshape(-1, 1)
+    ray_info["images_idx"] = torch.tensor(img_idx, dtype=torch.int64, device=device).reshape(-1, 1)
     nerf.kernelsnet.num_pt = ptnum
     ray_info["rays_x"] = torch.ones_like(ray_info["images_idx"]) * x
     ray_info["rays_y"] = torch.ones_like(ray_info["images_idx"]) * y
@@ -130,7 +138,8 @@ def visualize_kmap(H, W, K, nerf: nn.Module, x=1, y=1, img_idx=1, softmax=False)
     if isinstance(nerf, nn.DataParallel):
         nerf = nerf.module
 
-    nerf.cuda()
+    device = next(nerf.parameters()).device
+    nerf.to(device)
     self = nerf.kernelsnet
     img_embed = self.img_embed[img_idx][None, :]
     x = img_embed
@@ -152,7 +161,8 @@ def visualize_motionposes(H, W, K, nerf: nn.Module, img_idx=1):
     if isinstance(nerf, nn.DataParallel):
         nerf = nerf.module
 
-    nerf.cuda()
+    device = next(nerf.parameters()).device
+    nerf.to(device)
     assert hasattr(nerf.kernelsnet, "rotations")
     assert hasattr(nerf.kernelsnet, "trans")
 
