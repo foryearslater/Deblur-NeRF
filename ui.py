@@ -190,7 +190,7 @@ PARAM_HELP = {
         "type": "int",
         "default": 4,
         "recommended": [1, 2, 4, 8],
-        "tips": "推荐值：4-8用于快速测试，1-2用于最终结果"
+        "tips": "推荐值：4-8用于测试，1-2用于最终结果"
     },
     
     # 网络架构
@@ -320,14 +320,14 @@ PARAM_HELP = {
 }
 
 PRESET_CONFIGS = {
-    "快速测试": {
+    "测试": {
         "factor": 8,
         "N_iters": 10000,
         "N_rand": 2048,
         "chunk": 8192,
         "netwidth": 128,
         "N_samples": 32,
-        "desc": "快速测试，低精度"
+        "desc": "测试，低精度"
     },
     "标准配置": {
         "factor": 4,
@@ -835,14 +835,10 @@ def home_page():
     st.markdown('<h1 class="main-title">🎬 Deblur-NeRF 管理系统</h1>', unsafe_allow_html=True)
     
     st.markdown("""
-    <div class="info-box">
-    <strong>欢迎使用Deblur-NeRF增强管理界面！</strong><br>
-    这是一个完整的GUI系统，用于配置、训练和推理神经辐射场(NeRF)模型，支持处理模糊图像恢复清晰3D场景。
-    </div>
     """, unsafe_allow_html=True)
     
-    # 快速导航
-    st.markdown("### 🚀 快速开始", unsafe_allow_html=True)
+    # 导航
+    st.markdown("### 🚀 开始", unsafe_allow_html=True)
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         if st.button("⚙️ 配置管理", width='stretch'):
@@ -917,8 +913,8 @@ def home_page():
     
     st.divider()
     
-    # 快速提示
-    st.markdown("### 💡 快速提示")
+    # 提示
+    st.markdown("### 💡 提示")
     tips = [
         "📝 **首次使用**: 先在'配置管理'创建或加载配置",
         "🚀 **开始训练**: 配置完成后点击'训练系统'启动训练",
@@ -933,15 +929,15 @@ def config_page():
     """配置管理页面"""
     st.markdown('<h2 class="section-header">⚙️ 配置管理系统</h2>', unsafe_allow_html=True)
     
-    tab1, tab2, tab3, tab4 = st.tabs(["🎯 快速预设", "📝 新建配置", "✏️ 编辑配置", "📚 参数详解"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🎯 预设", "📝 新建配置", "✏️ 编辑配置", "📚 参数详解"])
     
-    # Tab 1: 快速预设
+    # Tab 1: 预设
     with tab1:
-        st.markdown('<h3 style="color: #2ca02c;">快速配置预设</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 style="color: #2ca02c;">配置预设</h3>', unsafe_allow_html=True)
         
         st.markdown("""
         <div class="info-box">
-        <strong>选择预设方案快速创建配置</strong><br>
+        <strong>选择预设方创建配置</strong><br>
         这些预设已经根据常见场景和硬件配置优化过参数。
         </div>
         """, unsafe_allow_html=True)
@@ -1801,9 +1797,6 @@ def main():
     
     st.divider()
     st.markdown("""
-    <p style="text-align: center; color: #888; font-size: 0.8rem;">
-    🎬 Deblur-NeRF Enhanced UI | © 2024<br>
-    <strong>提示</strong>: 这是一个增强版本，包含完整的配置管理、实时监控和结果对比功能
     </p>
     """, unsafe_allow_html=True)
 
