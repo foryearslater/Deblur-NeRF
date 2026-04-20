@@ -23,7 +23,7 @@ import plotly.express as px
 
 # ==================== 页面配置 ====================
 st.set_page_config(
-    page_title="Deblur-NeRF 管理系统",
+    page_title="Deblur-NeRF",
     page_icon="🎬",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -832,7 +832,7 @@ def create_param_card(param_key, param_info):
 
 def home_page():
     """首页 - 仪表板"""
-    st.markdown('<h1 class="main-title">🎬 Deblur-NeRF 管理系统</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-title">🎬 Deblur-NeRF</h1>', unsafe_allow_html=True)
     
     st.markdown("""
     """, unsafe_allow_html=True)
@@ -927,7 +927,7 @@ def home_page():
 
 def config_page():
     """配置管理页面"""
-    st.markdown('<h2 class="section-header">⚙️ 配置管理系统</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="section-header">⚙️ 配置</h2>', unsafe_allow_html=True)
     
     tab1, tab2, tab3, tab4 = st.tabs(["🎯 预设", "📝 新建配置", "✏️ 编辑配置", "📚 参数详解"])
     
@@ -1255,7 +1255,7 @@ def config_page():
 
 def training_page():
     """训练管理页面"""
-    st.markdown('<h2 class="section-header">🚀 训练管理系统</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="section-header">🚀 训练</h2>', unsafe_allow_html=True)
     
     tab1, tab2, tab3 = st.tabs(["🎯 启动训练", "📊 训练监控", "📈 曲线分析"])
     
