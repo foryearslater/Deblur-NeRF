@@ -378,7 +378,7 @@ def sample_pdf(bins, weights, N_samples, det=False, pytest=False):
             u = np.broadcast_to(u, new_shape)
         else:
             u = np.random.rand(*new_shape)
-        u = torch.Tensor(u)
+        u = torch.Tensor(u).to(cdf.device)
 
     # Invert CDF
     u = u.contiguous()
