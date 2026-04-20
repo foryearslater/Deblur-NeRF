@@ -11,6 +11,8 @@ import numpy as np
 from pathlib import Path
 import subprocess
 import time
+import sys
+import re
 from datetime import datetime
 import pandas as pd
 from PIL import Image
@@ -119,6 +121,29 @@ st.markdown("""
 
 .tab-content {
     padding: 1rem 0;
+}
+
+.compare-panel {
+    background: linear-gradient(135deg, #fffaf0 0%, #fff 100%);
+    padding: 1rem;
+    border-radius: 0.8rem;
+    border: 1px solid #f0e4d3;
+    margin-bottom: 1rem;
+}
+
+div[data-testid="stMetric"] {
+    background: #ffffff;
+    border: 1px solid #ececec;
+    padding: 0.6rem;
+    border-radius: 0.6rem;
+}
+
+div[data-baseweb="tab-list"] {
+    gap: 0.5rem;
+}
+
+button[kind="secondary"] {
+    border-radius: 0.6rem;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -510,6 +535,80 @@ def get_experiment_stats(exp_name):
     stats['size_mb'] = stats['size'] / (1024**2)
     return stats
 
+
+def _extract_latest_iter_from_ckpt(exp_dir: Path):
+    """从 *.tar 检查点文件名提取最新迭代数"""
+    latest = None
+    for ckpt in exp_dir.glob("*.tar"):
+        m = re.match(r"^(\d+)\.tar$", ckpt.name)
+        if not m:
+            continue
+        it = int(m.group(1))
+        latest = it if latest is None else max(latest, it)
+    return latest
+
+
+def parse_test_metrics(exp_name):
+    """解析 logs/<exp>/test_metrics.txt 中的 iter 与 PSNR"""
+    metric_file = Path("logs") / exp_name / "test_metrics.txt"
+    if not metric_file.exists():
+        return []
+    points = []
+    pattern = re.compile(r"iter(\d+).*PSNR:([0-9eE+\-.]+)")
+    try:
+        with open(metric_file, "r") as f:
+            for line in f:
+                m = pattern.search(line)
+                if m:
+                    points.append((int(m.group(1)), float(m.group(2))))
+    except Exception:
+        return []
+    return sorted(points, key=lambda x: x[0])
+
+
+def infer_training_status(exp_name):
+    """基于实验目录推断训练状态"""
+    exp_dir = Path("logs") / exp_name
+    if not exp_dir.exists():
+        return {
+            "label": "未开始",
+            "detail": "实验目录不存在",
+            "progress_percent": 0,
+            "latest_iter": 0,
+            "target_iters": 0,
+            "is_running_hint": False,
+        }
+
+    stats = get_experiment_stats(exp_name) or {}
+    args_data = get_experiment_args(exp_name)
+    target_iters = _to_int(args_data.get("N_iters", 0), 0)
+    latest_iter = _extract_latest_iter_from_ckpt(exp_dir) or 0
+    progress_percent = int(min(100, (latest_iter / target_iters * 100))) if target_iters > 0 else 0
+
+    has_outputs = (stats.get("ckpt_count", 0) > 0) or (stats.get("images_count", 0) > 0)
+
+    if latest_iter > 0:
+        label = "训练中/已训练"
+        detail = f"检测到最新检查点: iter={latest_iter}"
+        is_running_hint = True
+    elif has_outputs:
+        label = "已产出结果"
+        detail = "检测到图像输出，但尚未检测到标准检查点文件"
+        is_running_hint = True
+    else:
+        label = "未检测到有效训练输出"
+        detail = "当前实验目录无检查点与渲染图像"
+        is_running_hint = False
+
+    return {
+        "label": label,
+        "detail": detail,
+        "progress_percent": progress_percent,
+        "latest_iter": latest_iter,
+        "target_iters": target_iters,
+        "is_running_hint": is_running_hint,
+    }
+
 def list_results(exp_name):
     """列出实验结果"""
     result_dirs = [
@@ -526,6 +625,195 @@ def list_results(exp_name):
             images.extend(sorted([f for f in result_dir.glob("*.jpg")]))
     
     return list(set(images))  # 去重
+
+
+def _parse_kv_file(file_path):
+    """解析 key = value 文本文件"""
+    data = {}
+    path = Path(file_path)
+    if not path.exists():
+        return data
+    try:
+        with open(path, "r") as f:
+            for raw in f:
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                data[key.strip()] = value.strip()
+    except Exception:
+        return {}
+    return data
+
+
+def get_experiment_args(exp_name):
+    """读取 logs/<exp>/args.txt"""
+    args_file = Path("logs") / exp_name / "args.txt"
+    return _parse_kv_file(args_file)
+
+
+def _to_int(value, default=0):
+    try:
+        return int(str(value).strip())
+    except Exception:
+        return default
+
+
+def _numeric_stem(path_obj):
+    stem = Path(path_obj).stem
+    m = re.match(r"^(\d+)$", stem)
+    return int(m.group(1)) if m else None
+
+
+def list_source_images_by_exp(exp_name):
+    """根据实验参数定位训练输入图像序列（LLFF）"""
+    args_data = get_experiment_args(exp_name)
+    datadir = args_data.get("datadir", "")
+    factor = _to_int(args_data.get("factor", 1), 1)
+    if not datadir:
+        return []
+
+    dataset_dir = Path(datadir)
+    candidate_dirs = []
+    if factor > 1:
+        candidate_dirs.append(dataset_dir / f"images_{factor}")
+    candidate_dirs.append(dataset_dir / "images")
+    if factor == 1:
+        candidate_dirs.append(dataset_dir / "images_1")
+
+    exts = {".png", ".jpg", ".jpeg", ".JPG", ".PNG"}
+    for img_dir in candidate_dirs:
+        if img_dir.exists() and img_dir.is_dir():
+            files = [p for p in sorted(img_dir.iterdir()) if p.is_file() and p.suffix in exts]
+            if files:
+                return files
+    return []
+
+
+def list_result_images(exp_name):
+    """返回实验可视化结果图（优先最新 testset，其次 renderonly）"""
+    exp_dir = Path("logs") / exp_name
+    if not exp_dir.exists():
+        return []
+
+    # 优先 testset_xxxxxx 最新目录
+    testset_dirs = sorted(
+        [d for d in exp_dir.glob("testset_*") if d.is_dir()],
+        key=lambda d: d.name
+    )
+    target_dirs = []
+    if testset_dirs:
+        target_dirs.append(testset_dirs[-1])
+    target_dirs.extend(sorted([d for d in exp_dir.glob("renderonly_test_*") if d.is_dir()], key=lambda d: d.name, reverse=True))
+    target_dirs.extend(sorted([d for d in exp_dir.glob("renderonly_path_*") if d.is_dir()], key=lambda d: d.name, reverse=True))
+    target_dirs.append(exp_dir)
+
+    images = []
+    for result_dir in target_dirs:
+        if not result_dir.exists():
+            continue
+        candidates = sorted([*result_dir.glob("*.png"), *result_dir.glob("*.jpg"), *result_dir.glob("*.jpeg")])
+        # 排除辅助图
+        candidates = [
+            p for p in candidates
+            if ("_disp" not in p.stem and "_pt" not in p.stem and not p.name.startswith("w_"))
+        ]
+        if candidates:
+            # 数字文件名优先按数字排序
+            if all(_numeric_stem(p) is not None for p in candidates):
+                candidates = sorted(candidates, key=lambda p: _numeric_stem(p))
+            images = candidates
+            break
+
+    return images
+
+
+def match_before_after_images(exp_name):
+    """根据文件名编号建立训练前后图像对"""
+    before_images = list_source_images_by_exp(exp_name)
+    after_images = list_result_images(exp_name)
+    if not before_images or not after_images:
+        return [], before_images, after_images
+
+    pairs = []
+    # 常见情况：after 为 000.png 编号，与数据集索引一致
+    for after_path in after_images:
+        idx = _numeric_stem(after_path)
+        if idx is not None and 0 <= idx < len(before_images):
+            pairs.append((before_images[idx], after_path))
+
+    # 回退：按顺序对齐
+    if not pairs:
+        pair_len = min(len(before_images), len(after_images))
+        pairs = [(before_images[i], after_images[i]) for i in range(pair_len)]
+
+    return pairs, before_images, after_images
+
+
+def render_before_after_compare(exp_name, widget_key_prefix="compare"):
+    """渲染训练前后图像对比组件"""
+    pairs, before_images, after_images = match_before_after_images(exp_name)
+
+    if not after_images:
+        st.info("未找到渲染结果图。请先训练并生成 testset 或 renderonly 输出。")
+        return
+    if not before_images:
+        st.info("未找到数据集原图。请检查该实验的 `args.txt` 中 datadir/factor 配置。")
+        return
+    if not pairs:
+        st.info("找到了图像，但无法建立前后对应关系。")
+        return
+
+    st.markdown('<div class="compare-panel">', unsafe_allow_html=True)
+    col_a, col_b, col_c = st.columns([1, 1, 1])
+    with col_a:
+        st.metric("原图数量", len(before_images))
+    with col_b:
+        st.metric("结果数量", len(after_images))
+    with col_c:
+        st.metric("可对比对数", len(pairs))
+
+    idx = st.slider(
+        "选择图像索引",
+        min_value=0,
+        max_value=len(pairs) - 1,
+        value=0,
+        key=f"{widget_key_prefix}_img_idx"
+    )
+    alpha = st.slider(
+        "融合滑块（0=原图，1=训练后）",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.5,
+        step=0.05,
+        key=f"{widget_key_prefix}_alpha"
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    before_path, after_path = pairs[idx]
+    try:
+        before_img = Image.open(before_path).convert("RGB")
+        after_img = Image.open(after_path).convert("RGB")
+        if before_img.size != after_img.size:
+            after_img = after_img.resize(before_img.size, Image.BICUBIC)
+        blend_img = Image.blend(before_img, after_img, alpha=alpha)
+
+        diff_np = np.abs(np.array(after_img, dtype=np.int16) - np.array(before_img, dtype=np.int16)).astype(np.uint8)
+        diff_img = Image.fromarray(diff_np)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"**训练前**: `{before_path.name}`")
+            st.image(before_img, width='stretch')
+            st.markdown(f"**训练后**: `{after_path.name}`")
+            st.image(after_img, width='stretch')
+        with col2:
+            st.markdown("**融合对比**")
+            st.image(blend_img, width='stretch')
+            st.markdown("**绝对差分图**")
+            st.image(diff_img, width='stretch')
+    except Exception as e:
+        st.error(f"图像读取失败: {e}")
 
 def create_param_card(param_key, param_info):
     """创建参数信息卡片"""
@@ -1024,7 +1312,7 @@ def training_page():
                                 # 构建训练命令
                                 config_path = f"configs/{selected_config}"
                                 cmd = [
-                                    "python", "run_nerf.py",
+                                    sys.executable, "run_nerf.py",
                                     "--config", config_path,
                                 ]
                                 
@@ -1040,7 +1328,7 @@ def training_page():
                                 with st.spinner("正在启动训练进程..."):
                                     import os
                                     # 使用nohup在后台启动，避免被Streamlit终止
-                                    nohup_cmd = f"cd {os.getcwd()} && nohup python run_nerf.py --config {config_path} > training.log 2>&1 &"
+                                    nohup_cmd = f"cd {os.getcwd()} && nohup {sys.executable} run_nerf.py --config {config_path} > training.log 2>&1 &"
                                     os.system(nohup_cmd)
                                     time.sleep(2)  # 等待进程启动
                                 
@@ -1064,7 +1352,7 @@ def training_page():
                     if st.button("📖 查看命令", width='stretch'):
                         with st.expander("运行命令"):
                             config = config_data
-                            cmd = f"""python run_nerf.py \\
+                            cmd = f"""{sys.executable} run_nerf.py \\
     --config configs/{selected_config} \\
     --num_gpu {num_gpus} \\
     --{log_level.lower()}"""
@@ -1094,6 +1382,7 @@ def training_page():
             
             # 实验统计信息
             stats = get_experiment_stats(selected_exp)
+            status = infer_training_status(selected_exp)
             if stats:
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
@@ -1111,42 +1400,45 @@ def training_page():
             
             with col1:
                 st.markdown("**📊 训练指标**")
-                # 模拟训练数据
-                iterations = list(range(0, 51000, 5000))
-                psnr_values = [15 + i*0.3 + np.random.randn()*0.5 for i in range(len(iterations))]
-                loss_values = [1.0 - i*0.015 + np.random.randn()*0.05 for i in range(len(iterations))]
-                
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(
-                    x=iterations, y=psnr_values,
-                    mode='lines+markers',
-                    name='PSNR',
-                    line=dict(color='#2ca02c', width=2),
-                    marker=dict(size=6)
-                ))
-                fig.update_layout(
-                    title="PSNR 训练曲线",
-                    xaxis_title="迭代次数",
-                    yaxis_title="PSNR (dB)",
-                    hovermode='x unified',
-                    height=350
-                )
-                st.plotly_chart(fig, width='stretch')
+                metric_points = parse_test_metrics(selected_exp)
+                if metric_points:
+                    iterations = [x[0] for x in metric_points]
+                    psnr_values = [x[1] for x in metric_points]
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(
+                        x=iterations, y=psnr_values,
+                        mode='lines+markers',
+                        name='PSNR',
+                        line=dict(color='#2ca02c', width=2),
+                        marker=dict(size=6)
+                    ))
+                    fig.update_layout(
+                        title="PSNR 测试曲线（来自 test_metrics.txt）",
+                        xaxis_title="迭代次数",
+                        yaxis_title="PSNR (dB)",
+                        hovermode='x unified',
+                        height=350
+                    )
+                    st.plotly_chart(fig, width='stretch')
+                else:
+                    st.info("暂未找到可用的测试指标文件（`test_metrics.txt`）。")
             
             with col2:
                 st.markdown("**🎯 训练状态**")
-                progress_percent = min(90, stats['ckpt_count'] * 10)
+                progress_percent = status["progress_percent"]
                 col_status, col_refresh = st.columns([3, 1])
                 with col_status:
                     st.progress(progress_percent / 100, text=f"进度: {progress_percent}%")
                 
+                box_class = "success-box" if status["is_running_hint"] else "warning-box"
+                target_iters_text = status["target_iters"] if status["target_iters"] > 0 else "未知"
                 st.markdown(f"""
-                <div class="success-box">
-                <strong>✅ 训练进行中</strong><br>
-                当前迭代: {stats['ckpt_count']*10000}/50000<br>
-                运行时间: 约2天 3小时<br>
-                学习率: 5e-4<br>
-                GPU显存: ~24GB / 32GB
+                <div class="{box_class}">
+                <strong>{status["label"]}</strong><br>
+                {status["detail"]}<br>
+                当前迭代: {status["latest_iter"]}/{target_iters_text}<br>
+                检查点数: {stats['ckpt_count']}<br>
+                输出图像数: {stats['images_count']}
                 </div>
                 """, unsafe_allow_html=True)
     
@@ -1214,7 +1506,7 @@ def inference_page():
     """推理与结果页面"""
     st.markdown('<h2 class="section-header">🎨 推理与结果展示</h2>', unsafe_allow_html=True)
     
-    tab1, tab2, tab3 = st.tabs(["🎯 运行推理", "🖼️ 结果查看", "📊 质量指标"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🎯 运行推理", "🖼️ 结果查看", "🔍 前后对比", "📊 质量指标"])
     
     with tab1:
         st.markdown('<h3 style="color: #2ca02c;">运行推理</h3>', unsafe_allow_html=True)
@@ -1257,7 +1549,7 @@ def inference_page():
         else:
             selected_exp = st.selectbox("选择实验", exps, key="result_exp")
             
-            images = list_results(selected_exp)
+            images = list_result_images(selected_exp)
             if not images:
                 st.info("暂无结果图像")
             else:
@@ -1285,8 +1577,18 @@ def inference_page():
                                     st.image(img, caption=img_path.name, width='stretch')
                                 except Exception as e:
                                     st.error(f"加载失败: {img_path.name}")
-    
+
     with tab3:
+        st.markdown('<h3 style="color: #2ca02c;">训练前后图像对比</h3>', unsafe_allow_html=True)
+        st.caption("自动匹配实验输入图像与渲染输出图，支持融合滑块与差分查看。")
+        exps = get_experiments()
+        if not exps:
+            st.info("暂无实验")
+        else:
+            selected_exp = st.selectbox("选择实验", exps, key="before_after_exp")
+            render_before_after_compare(selected_exp, widget_key_prefix=f"before_after_{selected_exp}")
+
+    with tab4:
         st.markdown('<h3 style="color: #2ca02c;">质量指标分析</h3>', unsafe_allow_html=True)
         
         st.markdown("""
@@ -1368,8 +1670,8 @@ def analysis_page():
             if exp1 != exp2:
                 st.divider()
                 
-                images1 = list_results(exp1)
-                images2 = list_results(exp2)
+                images1 = list_result_images(exp1)
+                images2 = list_result_images(exp2)
                 
                 if images1 and images2:
                     img_idx = st.slider("选择图像索引", 0, min(len(images1), len(images2)) - 1, 0)
