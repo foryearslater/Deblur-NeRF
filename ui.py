@@ -557,19 +557,19 @@ def home_page():
     st.markdown("### 🚀 快速开始", unsafe_allow_html=True)
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        if st.button("⚙️ 配置管理", use_container_width=True):
+        if st.button("⚙️ 配置管理", width='stretch'):
             st.session_state.page = "配置"
             st.rerun()
     with col2:
-        if st.button("🚀 训练系统", use_container_width=True):
+        if st.button("🚀 训练系统", width='stretch'):
             st.session_state.page = "训练"
             st.rerun()
     with col3:
-        if st.button("🎨 推理结果", use_container_width=True):
+        if st.button("🎨 推理结果", width='stretch'):
             st.session_state.page = "推理"
             st.rerun()
     with col4:
-        if st.button("📊 分析对比", use_container_width=True):
+        if st.button("📊 分析对比", width='stretch'):
             st.session_state.page = "分析"
             st.rerun()
     
@@ -672,7 +672,7 @@ def config_page():
                             param_text.append(f"• {key}: {value}")
                     st.caption("\n".join(param_text))
                     
-                    if st.button(f"✨ 使用 {preset_name}", use_container_width=True):
+                    if st.button(f"✨ 使用 {preset_name}", width='stretch'):
                         st.session_state.current_config = preset_params
                         st.success(f"✅ 已加载预设：{preset_name}")
                         st.info("📝 可在'新建配置'或'编辑配置'中进一步调整")
@@ -720,7 +720,8 @@ def config_page():
                 dataset_type = st.selectbox(
                     "数据集类型",
                     ["llff", "blender"],
-                    index=0 if st.session_state.current_config.get('dataset_type', 'llff') == 'llff' else 1
+                    index=0 if st.session_state.current_config.get('dataset_type', 'llff') == 'llff' else 1,
+                    key="dataset_type"
                 )
         
         with st.expander("🧠 网络架构"):
@@ -822,7 +823,8 @@ def config_page():
                 "模糊核类型",
                 ["none", "kernel"],
                 index=0 if st.session_state.current_config.get('kernel_type', 'kernel') == 'none' else 1,
-                help=PARAM_HELP['kernel_type']['help']
+                help=PARAM_HELP['kernel_type']['help'],
+                key="kernel_type"
             )
             
             if kernel_type == "kernel":
@@ -861,7 +863,7 @@ def config_page():
                 i_video = st.slider("视频生成频率", min_value=5000, max_value=50000, step=5000, value=20000)
         
         # 保存按钮
-        if st.button("💾 保存配置", use_container_width=True):
+        if st.button("💾 保存配置", width='stretch'):
             config_data = {
                 "expname": expname,
                 "datadir": datadir,
@@ -915,7 +917,7 @@ def config_page():
         if not configs:
             st.info("暂无配置文件")
         else:
-            selected_config = st.selectbox("选择配置文件", configs)
+            selected_config = st.selectbox("选择配置文件", configs, key="edit_config_select")
             config_data = load_config(selected_config)
             
             if config_data:
@@ -982,7 +984,7 @@ def training_page():
         else:
             col1, col2 = st.columns([1, 1])
             with col1:
-                selected_config = st.selectbox("选择配置文件", configs, help="选择要使用的配置")
+                selected_config = st.selectbox("选择配置文件", configs, help="选择要使用的配置", key="train_config_select")
                 config_data = load_config(selected_config)
             
             if config_data:
@@ -1003,14 +1005,14 @@ def training_page():
                 with col2:
                     st.markdown("**监控设置**")
                     enable_tb = st.checkbox("启用TensorBoard", value=True, help="记录训练指标")
-                    log_level = st.selectbox("日志级别", ["INFO", "DEBUG", "WARNING"], index=0)
+                    log_level = st.selectbox("日志级别", ["INFO", "DEBUG", "WARNING"], index=0, key="log_level_select")
                     auto_continue = st.checkbox("中断后自动继续", value=False, help="从最新检查点继续训练")
                 
                 st.divider()
                 
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    if st.button("🚀 启动训练", use_container_width=True, key="start_training"):
+                    if st.button("🚀 启动训练", width='stretch', key="start_training"):
                         # 验证配置
                         errors, warnings = validate_config(config_data)
                         if errors:
@@ -1059,7 +1061,7 @@ def training_page():
                                 st.error(f"❌ 启动训练失败: {str(e)}")
                 
                 with col2:
-                    if st.button("📖 查看命令", use_container_width=True):
+                    if st.button("📖 查看命令", width='stretch'):
                         with st.expander("运行命令"):
                             config = config_data
                             cmd = f"""python run_nerf.py \\
@@ -1069,7 +1071,7 @@ def training_page():
                             st.code(cmd, language="bash")
                 
                 with col3:
-                    if st.button("✅ 验证配置", use_container_width=True):
+                    if st.button("✅ 验证配置", width='stretch'):
                         errors, warnings = validate_config(config_data)
                         if errors:
                             for error in errors:
@@ -1088,7 +1090,7 @@ def training_page():
         if not exps:
             st.info("暂无训练实验，请在'启动训练'标签页创建")
         else:
-            selected_exp = st.selectbox("选择实验", exps)
+            selected_exp = st.selectbox("选择实验", exps, key="monitor_exp_select")
             
             # 实验统计信息
             stats = get_experiment_stats(selected_exp)
@@ -1129,7 +1131,7 @@ def training_page():
                     hovermode='x unified',
                     height=350
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
             
             with col2:
                 st.markdown("**🎯 训练状态**")
@@ -1185,7 +1187,7 @@ def training_page():
                         hovermode='x unified',
                         height=400
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
                 
                 with col2:
                     st.markdown("**Loss 对比**")
@@ -1206,7 +1208,7 @@ def training_page():
                         hovermode='x unified',
                         height=400
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
 
 def inference_page():
     """推理与结果页面"""
@@ -1221,29 +1223,29 @@ def inference_page():
         if not exps:
             st.warning("⚠️ 暂无已完成的训练实验")
         else:
-            selected_exp = st.selectbox("选择实验", exps)
+            selected_exp = st.selectbox("选择实验", exps, key="inference_exp_select")
             
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown("**推理设置**")
                 render_factor = st.slider("渲染分辨率", 1, 8, 4, help="值越小分辨率越高，生成越慢")
-                render_poses = st.selectbox("渲染方式", ["测试集", "相机路径", "螺旋路径"])
+                render_poses = st.selectbox("渲染方式", ["测试集", "相机路径", "螺旋路径"], key="render_poses_select")
             
             with col2:
                 st.markdown("**输出设置**")
-                output_format = st.selectbox("输出格式", ["PNG", "JPEG", "MP4"])
+                output_format = st.selectbox("输出格式", ["PNG", "JPEG", "MP4"], key="output_format_select")
                 num_workers = st.slider("并行工作数", 1, 8, 4)
             
             st.divider()
             
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("🎯 启动推理", use_container_width=True):
+                if st.button("🎯 启动推理", width='stretch'):
                     st.success("✅ 推理任务已启动")
                     st.info("💡 推理可能需要几分钟，请耐心等待")
             
             with col2:
-                if st.button("🎬 生成视频", use_container_width=True):
+                if st.button("🎬 生成视频", width='stretch'):
                     st.success("✅ 视频生成任务已启动")
     
     with tab2:
@@ -1280,9 +1282,7 @@ def inference_page():
                             with cols[(idx+9) % 3]:
                                 try:
                                     img = Image.open(img_path)
-                                    st.image(img, caption=img_path.name, use_container_width=True)
-                                except:
-                                    pass
+                            st.image(img, caption=img_path.name, width='stretch')
     
     with tab3:
         st.markdown('<h3 style="color: #2ca02c;">质量指标分析</h3>', unsafe_allow_html=True)
@@ -1303,9 +1303,9 @@ def inference_page():
         else:
             col1, col2 = st.columns([2, 1])
             with col1:
-                selected_exp = st.selectbox("选择实验", exps)
+                selected_exp = st.selectbox("选择实验", exps, key="analysis_exp_select")
             with col2:
-                metric_type = st.selectbox("指标类型", ["PSNR", "SSIM", "LPIPS"])
+                metric_type = st.selectbox("指标类型", ["PSNR", "SSIM", "LPIPS"], key="analysis_metric_type_select")
             
             # 模拟指标数据
             test_images = list(range(1, 11))
@@ -1330,7 +1330,7 @@ def inference_page():
                 yaxis_title=metric_type,
                 height=400
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
             # 统计信息
             col1, col2, col3, col4 = st.columns(4)
@@ -1422,7 +1422,7 @@ def analysis_page():
                 })
             
             df = pd.DataFrame(exp_data)
-            st.dataframe(df, use_container_width=True)
+            st.dataframe(df, width='stretch')
             
             st.markdown("#### 📊 关键指标概览")
             
