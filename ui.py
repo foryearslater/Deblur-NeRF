@@ -1269,7 +1269,7 @@ def inference_page():
                     with cols[idx % 3]:
                         try:
                             img = Image.open(img_path)
-                            st.image(img, caption=img_path.name, use_column_width=True)
+                            st.image(img, caption=img_path.name, width='stretch')
                         except Exception as e:
                             st.error(f"加载失败: {img_path.name}")
                 
@@ -1282,7 +1282,9 @@ def inference_page():
                             with cols[(idx+9) % 3]:
                                 try:
                                     img = Image.open(img_path)
-                            st.image(img, caption=img_path.name, width='stretch')
+                                    st.image(img, caption=img_path.name, width='stretch')
+                                except Exception as e:
+                                    st.error(f"加载失败: {img_path.name}")
     
     with tab3:
         st.markdown('<h3 style="color: #2ca02c;">质量指标分析</h3>', unsafe_allow_html=True)
@@ -1377,7 +1379,7 @@ def analysis_page():
                         st.markdown(f"### {exp1}")
                         try:
                             img1 = Image.open(images1[img_idx])
-                            st.image(img1, use_column_width=True)
+                            st.image(img1, width='stretch')
                         except:
                             st.error("图像加载失败")
                     
@@ -1385,7 +1387,7 @@ def analysis_page():
                         st.markdown(f"### {exp2}")
                         try:
                             img2 = Image.open(images2[img_idx])
-                            st.image(img2, use_column_width=True)
+                            st.image(img2, width='stretch')
                         except:
                             st.error("图像加载失败")
                     
