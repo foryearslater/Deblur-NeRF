@@ -303,7 +303,7 @@ class NeRFAll(nn.Module):
         # alpha = raw2alpha(raw[..., :-1, 3] + noise, dists, act_fn=self.sigma_activate)  # [N_rays, N_samples]
         # weights = alpha * tf.math.cumprod(1.-alpha + 1e-10, -1, exclusive=True)
         weights = alpha * \
-                  torch.cumprod(torch.cat([torch.ones((alpha.shape[0], 1)), - alpha + (1. + 1e-10)], -1), -1)[:, :-1]
+                  torch.cumprod(torch.cat([torch.ones((alpha.shape[0], 1), device=alpha.device, dtype=alpha.dtype), - alpha + (1. + 1e-10)], -1), -1)[:, :-1]
 
         rgb_map = torch.sum(weights[..., None] * rgb, -2)  # [N_rays, 3]
         depth_map = torch.sum(weights * z_vals, -1)
