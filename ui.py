@@ -13,6 +13,7 @@ import subprocess
 import time
 import sys
 import re
+import shlex
 from datetime import datetime
 import pandas as pd
 from PIL import Image
@@ -155,6 +156,10 @@ if 'current_config' not in st.session_state:
     st.session_state.current_config = {}
 if 'refresh_count' not in st.session_state:
     st.session_state.refresh_count = 0
+if 'sidebar_page' not in st.session_state:
+    st.session_state.sidebar_page = st.session_state.page
+if 'loaded_model_exp' not in st.session_state:
+    st.session_state.loaded_model_exp = None
 
 # ==================== 参数库和帮助文本 ====================
 
@@ -297,10 +302,10 @@ PARAM_HELP = {
     # 模糊核参数
     "kernel_type": {
         "desc": "模糊核类型",
-        "help": "none-原始NeRF | kernel-稀疏模糊核", 
+        "help": "none-原始NeRF | deformablesparsekernel-Deblur-NeRF 稀疏模糊核", 
         "type": "choice",
-        "default": "kernel",
-        "options": ["none", "kernel"]
+        "default": "deformablesparsekernel",
+        "options": ["none", "deformablesparsekernel"]
     },
     "kernel_ptnum": {
         "desc": "稀疏点数",
@@ -348,13 +353,13 @@ PRESET_CONFIGS = {
         "desc": "最高质量，需要大显存"
     },
     "camera_motion_blur": {
-        "kernel_type": "kernel",
+        "kernel_type": "deformablesparsekernel",
         "kernel_ptnum": 5,
         "kernel_hwindow": 10,
         "desc": "相机动模糊优化"
     },
     "defocus_blur": {
-        "kernel_type": "kernel",
+        "kernel_type": "deformablesparsekernel",
         "kernel_ptnum": 7,
         "kernel_hwindow": 15,
         "desc": "失焦模糊优化"
@@ -421,6 +426,124 @@ def save_config(config_data, config_name):
         st.error(f"❌ 保存配置出错：{e}")
         return False
 
+
+def _set_page(page_name):
+    """同步首页按钮与侧边栏导航状态"""
+    st.session_state.page = page_name
+    st.session_state.sidebar_page = page_name
+
+
+def _to_bool(value, default=False):
+    """将配置值安全转换为布尔值"""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "y", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "n", "off", ""}:
+        return False
+    return default
+
+
+def _normalize_kernel_type(value):
+    """兼容 UI 别名与训练脚本真实 kernel_type"""
+    normalized = str(value).strip().lower()
+    if normalized in {"", "kernel", "deformablesparsekernel"}:
+        return "deformablesparsekernel"
+    if normalized == "none":
+        return "none"
+    return normalized
+
+
+def _format_shell_command(command_args):
+    """将参数列表格式化为可复制的 shell 命令"""
+    return " ".join(shlex.quote(str(arg)) for arg in command_args)
+
+
+def _launch_background_process(command_args, log_path):
+    """后台启动任务并将输出重定向到日志文件"""
+    log_path = Path(log_path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(log_path, "a", buffering=1) as log_file:
+        log_file.write(
+            f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+            f"Launching: {_format_shell_command(command_args)}\n"
+        )
+        process = subprocess.Popen(
+            command_args,
+            cwd=os.getcwd(),
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+
+    return process.pid
+
+
+def get_experiment_config_path(exp_name):
+    """返回实验目录中可用于重新渲染的配置文件"""
+    exp_dir = get_experiment_dir(exp_name)
+    config_path = exp_dir / "config.txt"
+    if config_path.exists():
+        return config_path
+    args_path = exp_dir / "args.txt"
+    if args_path.exists():
+        return args_path
+    return None
+
+
+def build_training_command(config_path, config_data, *, num_gpus=1, save_ckpt=True, render_testset=True,
+                           enable_tb=True, auto_continue=False):
+    """根据 UI 选项构建训练命令"""
+    command = [
+        sys.executable, "run_nerf.py",
+        "--config", str(config_path),
+        "--num_gpu", str(int(num_gpus)),
+    ]
+
+    total_iters = _to_int(config_data.get("N_iters", 50000), 50000)
+    i_weights = _to_int(config_data.get("i_weights", 20000), 20000)
+    i_testset = _to_int(config_data.get("i_testset", 20000), 20000)
+    i_tensorboard = _to_int(config_data.get("i_tensorboard", 200), 200)
+
+    if not auto_continue:
+        command.append("--no_reload")
+
+    command.extend([
+        "--i_weights", str(i_weights if save_ckpt else total_iters + 1),
+        "--i_testset", str(min(i_testset, total_iters) if render_testset else total_iters + 1),
+        "--i_tensorboard", str(i_tensorboard if enable_tb else total_iters + 1),
+    ])
+
+    return command
+
+
+def build_inference_command(exp_name, render_mode, render_factor=4, num_gpus=1):
+    """构建 render_only 推理命令"""
+    config_path = get_experiment_config_path(exp_name)
+    if config_path is None:
+        return None, "未找到可用于重新渲染的 config.txt 或 args.txt，无法自动发起推理。"
+
+    command = [
+        sys.executable, "run_nerf.py",
+        "--config", str(config_path),
+        "--render_only",
+        "--render_factor", str(int(render_factor)),
+        "--num_gpu", str(int(num_gpus)),
+    ]
+
+    if render_mode == "测试集":
+        command.append("--render_test")
+    elif render_mode == "EPI路径":
+        command.append("--render_epi")
+
+    return command, None
+
+
 def validate_config(config_data):
     """验证配置参数"""
     warnings = []
@@ -445,6 +568,15 @@ def validate_config(config_data):
         factor = int(config_data.get("factor", 4))
         if factor < 1:
             errors.append("factor必须 >= 1")
+
+        kernel_type = _normalize_kernel_type(config_data.get("kernel_type", "deformablesparsekernel"))
+        if kernel_type not in {"none", "deformablesparsekernel"}:
+            errors.append("kernel_type 仅支持 none 或 deformablesparsekernel")
+
+        datadir = config_data.get("datadir", "")
+        if datadir and not Path(datadir).exists():
+            warnings.append(f"数据目录当前不存在：{datadir}")
+
     except ValueError as e:
         errors.append(f"参数类型错误：{e}")
     
@@ -452,19 +584,7 @@ def validate_config(config_data):
 
 def get_experiments():
     """获取所有实验"""
-    logs_dir = Path("logs")
-    if not logs_dir.exists():
-        return []
-    
-    experiments = []
-    try:
-        for exp_dir in logs_dir.iterdir():
-            if exp_dir.is_dir():
-                experiments.append(exp_dir.name)
-    except Exception as e:
-        st.error(f"❌ 获取实验列表出错：{e}")
-    
-    return sorted(experiments, key=lambda x: Path(f"logs/{x}").stat().st_mtime, reverse=True)
+    return [record["id"] for record in get_experiment_records()]
 
 def get_gpu_info():
     """获取GPU信息"""
@@ -505,12 +625,12 @@ def get_system_stats():
 
 def get_experiment_stats(exp_name):
     """获取实验统计"""
-    exp_dir = Path("logs") / exp_name
+    exp_dir = get_experiment_dir(exp_name)
     if not exp_dir.exists():
         return None
     
     stats = {
-        'name': exp_name,
+        'name': get_experiment_name(exp_name),
         'created': datetime.fromtimestamp(exp_dir.stat().st_ctime).strftime("%Y-%m-%d %H:%M:%S"),
         'modified': datetime.fromtimestamp(exp_dir.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
         'size': 0,
@@ -523,7 +643,7 @@ def get_experiment_stats(exp_name):
         for item in exp_dir.rglob("*"):
             if item.is_file():
                 stats['size'] += item.stat().st_size
-                if item.suffix == '.pt' or 'ckpt' in item.name:
+                if item.suffix in {'.pt', '.tar'} or 'ckpt' in item.name:
                     stats['ckpt_count'] += 1
                 elif item.suffix in ['.png', '.jpg', '.jpeg']:
                     stats['images_count'] += 1
@@ -550,25 +670,61 @@ def _extract_latest_iter_from_ckpt(exp_dir: Path):
 
 def parse_test_metrics(exp_name):
     """解析 logs/<exp>/test_metrics.txt 中的 iter 与 PSNR"""
-    metric_file = Path("logs") / exp_name / "test_metrics.txt"
+    metric_records = parse_test_metric_records(exp_name)
+    return sorted(
+        [
+            (record["iter"], record["psnr"])
+            for record in metric_records
+            if record.get("psnr") is not None
+        ],
+        key=lambda x: x[0]
+    )
+
+
+def parse_test_metric_records(exp_name):
+    """解析 logs/<exp>/test_metrics.txt 中的完整评估指标"""
+    metric_file = get_experiment_dir(exp_name) / "test_metrics.txt"
     if not metric_file.exists():
         return []
-    points = []
-    pattern = re.compile(r"iter(\d+).*PSNR:([0-9eE+\-.]+)")
+
+    records = []
+    iter_pattern = re.compile(r"iter(\d+)")
+    value_patterns = {
+        "mse": re.compile(r"MSE:([0-9eE+\-.]+)"),
+        "psnr": re.compile(r"PSNR:([0-9eE+\-.]+)"),
+        "ssim": re.compile(r"SSIM:([0-9eE+\-.]+)"),
+        "lpips": re.compile(r"LPIPS:([0-9eE+\-.]+)"),
+    }
+
     try:
         with open(metric_file, "r") as f:
             for line in f:
-                m = pattern.search(line)
-                if m:
-                    points.append((int(m.group(1)), float(m.group(2))))
+                iter_match = iter_pattern.search(line)
+                if not iter_match:
+                    continue
+
+                record = {"iter": int(iter_match.group(1))}
+                for key, pattern in value_patterns.items():
+                    match = pattern.search(line)
+                    record[key] = float(match.group(1)) if match else None
+                records.append(record)
     except Exception:
         return []
-    return sorted(points, key=lambda x: x[0])
+
+    return sorted(records, key=lambda x: x["iter"])
+
+
+def get_latest_metric_record(exp_name):
+    """返回实验最新一条指标记录"""
+    records = parse_test_metric_records(exp_name)
+    if not records:
+        return None
+    return records[-1]
 
 
 def infer_training_status(exp_name):
     """基于实验目录推断训练状态"""
-    exp_dir = Path("logs") / exp_name
+    exp_dir = get_experiment_dir(exp_name)
     if not exp_dir.exists():
         return {
             "label": "未开始",
@@ -611,11 +767,12 @@ def infer_training_status(exp_name):
 
 def list_results(exp_name):
     """列出实验结果"""
+    exp_dir = get_experiment_dir(exp_name)
     result_dirs = [
-        Path("logs") / exp_name / "renderonly_test_000000",
-        Path("logs") / exp_name / "videos",
-        Path("logs") / exp_name / "results",
-        Path("logs") / exp_name
+        exp_dir / "renderonly_test_000000",
+        exp_dir / "videos",
+        exp_dir / "results",
+        exp_dir
     ]
     
     images = []
@@ -646,9 +803,145 @@ def _parse_kv_file(file_path):
     return data
 
 
+def _display_path(path_obj):
+    """尽量以相对路径展示目录，避免 UI 太长"""
+    path_obj = Path(path_obj)
+    try:
+        return str(path_obj.resolve().relative_to(Path.cwd().resolve()))
+    except Exception:
+        return str(path_obj)
+
+
+def _build_experiment_record(exp_dir):
+    """根据实验目录构建实验元数据"""
+    exp_dir = Path(exp_dir).expanduser()
+    if not exp_dir.exists() or not exp_dir.is_dir():
+        return None
+
+    args_data = _parse_kv_file(exp_dir / "args.txt")
+    try:
+        modified_ts = exp_dir.stat().st_mtime
+    except OSError:
+        modified_ts = 0
+
+    return {
+        "id": str(exp_dir.resolve()),
+        "name": args_data.get("expname", exp_dir.name),
+        "path": exp_dir,
+        "basedir": exp_dir.parent,
+        "modified_ts": modified_ts,
+    }
+
+
+def get_known_basedirs():
+    """从默认目录与配置文件中收集可能的实验 basedir"""
+    candidate_dirs = [Path("./logs")]
+    for config_name in get_config_files():
+        config_data = _parse_kv_file(Path("configs") / config_name)
+        basedir = str(config_data.get("basedir", "")).strip()
+        if basedir:
+            candidate_dirs.append(Path(basedir).expanduser())
+
+    basedirs = []
+    seen = set()
+    for basedir in candidate_dirs:
+        key = str(basedir.resolve())
+        if key in seen:
+            continue
+        seen.add(key)
+        basedirs.append(basedir)
+    return basedirs
+
+
+def get_experiment_records():
+    """发现所有实验目录，并生成展示信息"""
+    records = []
+    seen = set()
+
+    for basedir in get_known_basedirs():
+        if not basedir.exists() or not basedir.is_dir():
+            continue
+        try:
+            exp_dirs = [path for path in basedir.iterdir() if path.is_dir()]
+        except Exception:
+            continue
+
+        for exp_dir in exp_dirs:
+            record = _build_experiment_record(exp_dir)
+            if not record or record["id"] in seen:
+                continue
+            seen.add(record["id"])
+            records.append(record)
+
+    name_counts = defaultdict(int)
+    for record in records:
+        name_counts[record["name"]] += 1
+
+    for record in records:
+        basedir_label = _display_path(record["basedir"])
+        if name_counts[record["name"]] > 1:
+            record["label"] = f"{record['name']} [{basedir_label}]"
+        else:
+            record["label"] = record["name"]
+
+    return sorted(records, key=lambda record: record["modified_ts"], reverse=True)
+
+
+def get_experiment_record(exp_ref):
+    """按内部 ID、展示名或目录路径解析实验"""
+    if exp_ref is None:
+        return None
+
+    if isinstance(exp_ref, dict) and "path" in exp_ref:
+        return exp_ref
+
+    for record in get_experiment_records():
+        if exp_ref in {record["id"], record["name"], record.get("label")}:
+            return record
+
+    candidate_path = Path(str(exp_ref)).expanduser()
+    if candidate_path.exists() and candidate_path.is_dir():
+        record = _build_experiment_record(candidate_path)
+        if record:
+            record["label"] = record["name"]
+            return record
+    return None
+
+
+def get_experiment_dir(exp_ref):
+    """返回实验目录"""
+    record = get_experiment_record(exp_ref)
+    if record:
+        return record["path"]
+    return Path("./logs") / str(exp_ref)
+
+
+def get_experiment_name(exp_ref):
+    """返回实验短名称"""
+    record = get_experiment_record(exp_ref)
+    if record:
+        return record["name"]
+    return Path(str(exp_ref)).name
+
+
+def get_experiment_display_name(exp_ref):
+    """返回适合 UI 展示的实验名称"""
+    record = get_experiment_record(exp_ref)
+    if record:
+        return record.get("label", record["name"])
+    return get_experiment_name(exp_ref)
+
+
+def get_experiment_widget_key(exp_ref):
+    """根据实验标识生成稳定、安全的 widget key 片段"""
+    record = get_experiment_record(exp_ref)
+    raw_key = record["id"] if record else str(exp_ref)
+    return re.sub(r"[^\w]+", "_", raw_key).strip("_")
+
+
 def get_experiment_args(exp_name):
     """读取 logs/<exp>/args.txt"""
-    args_file = Path("logs") / exp_name / "args.txt"
+    args_file = get_experiment_dir(exp_name) / "args.txt"
     return _parse_kv_file(args_file)
 
 
@@ -692,7 +985,7 @@ def list_source_images_by_exp(exp_name):
 
 def list_result_images(exp_name):
     """返回实验可视化结果图（优先最新 testset，其次 renderonly）"""
-    exp_dir = Path("logs") / exp_name
+    exp_dir = get_experiment_dir(exp_name)
     if not exp_dir.exists():
         return []
 
@@ -748,6 +1041,22 @@ def match_before_after_images(exp_name):
         pairs = [(before_images[i], after_images[i]) for i in range(pair_len)]
 
     return pairs, before_images, after_images
+
+
+def build_image_pair_records(exp_name):
+    """构建可供场景视角浏览的前后图记录"""
+    pairs, before_images, after_images = match_before_after_images(exp_name)
+    records = []
+    for idx, (before_path, after_path) in enumerate(pairs):
+        records.append({
+            "index": idx,
+            "before_path": before_path,
+            "after_path": after_path,
+            "before_name": before_path.name,
+            "after_name": after_path.name,
+            "label": f"{idx:03d} | {before_path.name} -> {after_path.name}",
+        })
+    return records, before_images, after_images
 
 
 def render_before_after_compare(exp_name, widget_key_prefix="compare"):
@@ -815,6 +1124,143 @@ def render_before_after_compare(exp_name, widget_key_prefix="compare"):
     except Exception as e:
         st.error(f"图像读取失败: {e}")
 
+
+def model_loader_page():
+    """模型加载与场景结果查看页面"""
+    st.markdown('<h2 class="section-header">🧠 模型加载与结果查看</h2>', unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="info-box">
+    <strong>页面说明</strong><br>
+    这里遵循 Deblur-NeRF 原始项目的工作方式：先加载一个已经训练完成的场景模型，再选择该场景中的某个视角，查看原图与模型渲染结果。<br>
+    <strong>注意</strong>: 当前项目是场景级 NeRF，不做任意单张陌生图片的通用去模糊推理。
+    </div>
+    """, unsafe_allow_html=True)
+
+    exps = get_experiments()
+    if not exps:
+        st.info("暂无可加载的训练模型，请先完成训练。")
+        return
+
+    selected_exp = st.selectbox(
+        "选择模型实验",
+        exps,
+        format_func=get_experiment_display_name,
+        key="model_loader_exp_select"
+    )
+
+    exp_widget_key = get_experiment_widget_key(selected_exp)
+    stats = get_experiment_stats(selected_exp) or {}
+    status = infer_training_status(selected_exp)
+    args_data = get_experiment_args(selected_exp)
+    exp_dir = get_experiment_dir(selected_exp)
+    config_path = get_experiment_config_path(selected_exp)
+    latest_metrics = get_latest_metric_record(selected_exp) or {}
+    source_images = list_source_images_by_exp(selected_exp)
+    result_images = list_result_images(selected_exp)
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("模型名称", get_experiment_name(selected_exp))
+    with col2:
+        st.metric("检查点数", stats.get("ckpt_count", 0))
+    with col3:
+        st.metric("场景原图数", len(source_images))
+    with col4:
+        st.metric("状态", status["label"])
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("结果图数", len(result_images))
+    with col2:
+        latest_iter_text = str(status["latest_iter"]) if status["latest_iter"] else "未检测到"
+        st.metric("最新迭代", latest_iter_text)
+    with col3:
+        psnr_text = f"{latest_metrics['psnr']:.3f} dB" if latest_metrics.get("psnr") is not None else "N/A"
+        st.metric("最新 PSNR", psnr_text)
+    with col4:
+        ssim_text = f"{latest_metrics['ssim']:.4f}" if latest_metrics.get("ssim") is not None else "N/A"
+        st.metric("最新 SSIM", ssim_text)
+
+    with st.container(border=True):
+        st.markdown("### 模型信息")
+        st.write(f"实验目录: `{exp_dir}`")
+        st.write(f"配置文件: `{config_path}`" if config_path else "配置文件: 未找到")
+        st.write(f"数据目录: `{args_data.get('datadir', 'N/A')}`")
+        st.write(f"最新迭代: `{status['latest_iter']}` / 目标 `{status['target_iters'] or '未知'}`")
+
+        if st.button("📦 加载这个模型", width='stretch', key=f"load_model_{exp_widget_key}"):
+            st.session_state.loaded_model_exp = selected_exp
+            st.success(f"✅ 已加载模型：{get_experiment_display_name(selected_exp)}")
+
+    active_model = st.session_state.loaded_model_exp or selected_exp
+    st.caption(f"当前已加载模型: {get_experiment_display_name(active_model)}")
+    if active_model != selected_exp:
+        st.info("当前结果区域仍使用“已加载模型”。如果你想切换到新选择的实验，请点击上方“加载这个模型”。")
+
+    pair_records, before_images, after_images = build_image_pair_records(active_model)
+    if not pair_records:
+        if not before_images:
+            st.warning("未找到该模型对应的数据集原图，无法建立前后图关系。")
+        elif not after_images:
+            st.warning("未找到该模型的渲染结果图，请先执行测试集渲染。")
+        else:
+            st.warning("找到了原图和结果图，但暂时无法建立对应关系。")
+        return
+
+    st.divider()
+    st.markdown("### 选择场景视角")
+
+    active_widget_key = get_experiment_widget_key(active_model)
+    selected_idx = st.slider(
+        "选择视角索引",
+        min_value=0,
+        max_value=len(pair_records) - 1,
+        value=0,
+        key=f"model_loader_pair_idx_{active_widget_key}"
+    )
+    selected_record = pair_records[selected_idx]
+
+    with st.container(border=True):
+        st.markdown("### 当前视角信息")
+        st.write(f"场景模型: `{get_experiment_display_name(active_model)}`")
+        st.write(f"原图文件: `{selected_record['before_name']}`")
+        st.write(f"结果文件: `{selected_record['after_name']}`")
+        st.write(f"视角编号: `{selected_record['index']}` / `{len(pair_records) - 1}`")
+
+    st.divider()
+    st.markdown("### 训练结果展示")
+
+    try:
+        before_img = Image.open(selected_record["before_path"]).convert("RGB")
+        after_img = Image.open(selected_record["after_path"]).convert("RGB")
+        if before_img.size != after_img.size:
+            after_img = after_img.resize(before_img.size, Image.BICUBIC)
+        blend_img = Image.blend(before_img, after_img, alpha=0.5)
+
+        diff_np = np.abs(np.array(after_img, dtype=np.int16) - np.array(before_img, dtype=np.int16)).astype(np.uint8)
+        diff_img = Image.fromarray(diff_np)
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"**输入原图**: `{selected_record['before_name']}`")
+            st.image(before_img, width='stretch')
+        with col2:
+            st.markdown(f"**训练后结果图**: `{selected_record['after_name']}`")
+            st.image(after_img, width='stretch')
+        with col3:
+            st.markdown("**融合预览**")
+            st.image(blend_img, width='stretch')
+            st.markdown("**差分图**")
+            st.image(diff_img, width='stretch')
+
+        st.caption(
+            f"原图路径: {selected_record['before_path']} | "
+            f"结果图路径: {selected_record['after_path']}"
+        )
+    except Exception as e:
+        st.error(f"结果图展示失败: {e}")
+
 def create_param_card(param_key, param_info):
     """创建参数信息卡片"""
     html = f"""
@@ -839,22 +1285,26 @@ def home_page():
     
     # 导航
     st.markdown("### 🚀 开始", unsafe_allow_html=True)
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         if st.button("⚙️ 配置管理", width='stretch'):
-            st.session_state.page = "配置"
+            _set_page("配置")
             st.rerun()
     with col2:
         if st.button("🚀 训练系统", width='stretch'):
-            st.session_state.page = "训练"
+            _set_page("训练")
             st.rerun()
     with col3:
         if st.button("🎨 推理结果", width='stretch'):
-            st.session_state.page = "推理"
+            _set_page("推理")
             st.rerun()
     with col4:
         if st.button("📊 分析对比", width='stretch'):
-            st.session_state.page = "分析"
+            _set_page("分析")
+            st.rerun()
+    with col5:
+        if st.button("🧠 模型加载", width='stretch'):
+            _set_page("模型")
             st.rerun()
     
     st.divider()
@@ -905,7 +1355,7 @@ def home_page():
                     stats = get_experiment_stats(exp)
                     col_name, col_size = st.columns([3, 1])
                     with col_name:
-                        st.write(f"📌 **{exp}**")
+                        st.write(f"📌 **{get_experiment_display_name(exp)}**")
                     with col_size:
                         st.caption(f"{stats['size_mb']:.1f}MB")
             else:
@@ -918,6 +1368,7 @@ def home_page():
     tips = [
         "📝 **首次使用**: 先在'配置管理'创建或加载配置",
         "🚀 **开始训练**: 配置完成后点击'训练系统'启动训练",
+        "🧠 **加载模型**: 在'模型加载'页选择训练好的实验模型，并查看场景视角对应结果",
         "🎨 **查看结果**: 训练完成后在'推理结果'查看渲染输出",
         "📊 **对比分析**: 使用'分析对比'功能比较不同配置的效果",
         "⚡ **性能优化**: 如GPU显存不足，在配置中减小N_rand和chunk",
@@ -957,7 +1408,7 @@ def config_page():
                     st.caption("\n".join(param_text))
                     
                     if st.button(f"✨ 使用 {preset_name}", width='stretch'):
-                        st.session_state.current_config = preset_params
+                        st.session_state.current_config = dict(preset_params)
                         st.success(f"✅ 已加载预设：{preset_name}")
                         st.info("📝 可在'新建配置'或'编辑配置'中进一步调整")
     
@@ -1037,7 +1488,7 @@ def config_page():
             
             use_viewdirs = st.checkbox(
                 "使用视角信息",
-                value=st.session_state.current_config.get('use_viewdirs', True),
+                value=_to_bool(st.session_state.current_config.get('use_viewdirs', True), True),
                 help=PARAM_HELP['use_viewdirs']['help']
             )
         
@@ -1088,7 +1539,7 @@ def config_page():
                 perturb = st.select_slider(
                     "采样抖动",
                     options=['0.0', '0.5', '1.0'],
-                    value=st.session_state.current_config.get('perturb', '1.0')
+                    value=str(st.session_state.current_config.get('perturb', '1.0'))
                 )
             with col2:
                 N_importance = st.slider(
@@ -1103,15 +1554,19 @@ def config_page():
                 )
         
         with st.expander("🌫️ 模糊核参数"):
+            normalized_kernel_type = _normalize_kernel_type(
+                st.session_state.current_config.get('kernel_type', 'deformablesparsekernel')
+            )
             kernel_type = st.selectbox(
                 "模糊核类型",
-                ["none", "kernel"],
-                index=0 if st.session_state.current_config.get('kernel_type', 'kernel') == 'none' else 1,
+                ["none", "deformablesparsekernel"],
+                index=0 if normalized_kernel_type == 'none' else 1,
+                format_func=lambda value: "原始 NeRF" if value == "none" else "Deblur-NeRF 稀疏模糊核",
                 help=PARAM_HELP['kernel_type']['help'],
                 key="kernel_type"
             )
             
-            if kernel_type == "kernel":
+            if kernel_type != "none":
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     kernel_ptnum = st.slider(
@@ -1138,13 +1593,28 @@ def config_page():
         with st.expander("📊 日志设置"):
             col1, col2, col3 = st.columns(3)
             with col1:
-                i_print = st.slider("打印频率", min_value=100, max_value=1000, step=100, value=200)
-                i_weights = st.slider("权重保存频率", min_value=5000, max_value=50000, step=5000, value=20000)
+                i_print = st.slider(
+                    "打印频率", min_value=100, max_value=1000, step=100,
+                    value=_to_int(st.session_state.current_config.get('i_print', 200), 200)
+                )
+                i_weights = st.slider(
+                    "权重保存频率", min_value=5000, max_value=50000, step=5000,
+                    value=_to_int(st.session_state.current_config.get('i_weights', 20000), 20000)
+                )
             with col2:
-                i_tensorboard = st.slider("TensorBoard频率", min_value=100, max_value=1000, step=100, value=200)
-                i_testset = st.slider("测试频率", min_value=5000, max_value=50000, step=5000, value=20000)
+                i_tensorboard = st.slider(
+                    "TensorBoard频率", min_value=100, max_value=1000, step=100,
+                    value=_to_int(st.session_state.current_config.get('i_tensorboard', 200), 200)
+                )
+                i_testset = st.slider(
+                    "测试频率", min_value=5000, max_value=50000, step=5000,
+                    value=_to_int(st.session_state.current_config.get('i_testset', 20000), 20000)
+                )
             with col3:
-                i_video = st.slider("视频生成频率", min_value=5000, max_value=50000, step=5000, value=20000)
+                i_video = st.slider(
+                    "视频生成频率", min_value=5000, max_value=50000, step=5000,
+                    value=_to_int(st.session_state.current_config.get('i_video', 20000), 20000)
+                )
         
         # 保存按钮
         if st.button("💾 保存配置", width='stretch'):
@@ -1169,10 +1639,10 @@ def config_page():
                 "N_importance": str(N_importance),
                 "perturb": str(perturb),
                 "raw_noise_std": str(raw_noise_std),
-                "kernel_type": kernel_type,
-                "kernel_ptnum": str(kernel_ptnum) if kernel_type == "kernel" else "",
-                "kernel_hwindow": str(kernel_hwindow) if kernel_type == "kernel" else "",
-                "kernel_img_embed": str(kernel_img_embed) if kernel_type == "kernel" else "",
+                "kernel_type": _normalize_kernel_type(kernel_type),
+                "kernel_ptnum": str(kernel_ptnum) if kernel_type != "none" else "",
+                "kernel_hwindow": str(kernel_hwindow) if kernel_type != "none" else "",
+                "kernel_img_embed": str(kernel_img_embed) if kernel_type != "none" else "",
                 "i_print": str(i_print),
                 "i_tensorboard": str(i_tensorboard),
                 "i_weights": str(i_weights),
@@ -1206,6 +1676,9 @@ def config_page():
             
             if config_data:
                 st.success(f"✅ 已加载：{selected_config}")
+                if st.button("📥 加载到新建配置编辑器", width='stretch'):
+                    st.session_state.current_config = dict(config_data)
+                    st.success("✅ 已加载到“新建配置”页，可直接修改后另存为新文件。")
                 
                 # 显示配置文件内容
                 with st.expander("📋 原始配置内容", expanded=False):
@@ -1305,27 +1778,20 @@ def training_page():
                                 st.error(f"  • {error}")
                         else:
                             try:
-                                # 构建训练命令
-                                config_path = f"configs/{selected_config}"
-                                cmd = [
-                                    sys.executable, "run_nerf.py",
-                                    "--config", config_path,
-                                ]
-                                
-                                # 添加可选参数
-                                if save_ckpt:
-                                    cmd.extend(["--i_weights", "10000"])
-                                if render_test:
-                                    cmd.append("--render_test")
-                                if enable_tb and config_data.get('tbdir'):
-                                    cmd.extend(["--tbdir", config_data.get('tbdir', './tb_logs/')])
-                                
-                                # 尝试启动训练 (后台)
+                                config_path = Path("configs") / selected_config
+                                command_args = build_training_command(
+                                    config_path=config_path,
+                                    config_data=config_data,
+                                    num_gpus=num_gpus,
+                                    save_ckpt=save_ckpt,
+                                    render_testset=render_test,
+                                    enable_tb=enable_tb,
+                                    auto_continue=auto_continue,
+                                )
+                                log_path = Path(config_data.get("basedir", "./logs/")) / config_data.get("expname", "experiment") / "training.log"
+
                                 with st.spinner("正在启动训练进程..."):
-                                    import os
-                                    # 使用nohup在后台启动，避免被Streamlit终止
-                                    nohup_cmd = f"cd {os.getcwd()} && nohup {sys.executable} run_nerf.py --config {config_path} > training.log 2>&1 &"
-                                    os.system(nohup_cmd)
+                                    pid = _launch_background_process(command_args, log_path)
                                     time.sleep(2)  # 等待进程启动
                                 
                                 st.success("✅ 训练已启动！")
@@ -1334,12 +1800,18 @@ def training_page():
                                 - 配置: {selected_config}
                                 - 实验: {config_data.get('expname', 'N/A')}
                                 - 数据: {config_data.get('datadir', 'N/A')}
+                                - 进程 PID: {pid}
+                                - 日志: `{log_path}`
                                 
                                 **监控方式:**
-                                1. 查看日志: `tail -f training.log`
+                                1. 查看日志: `tail -f {log_path}`
                                 2. TensorBoard: `tensorboard --logdir {config_data.get('tbdir', './tb_logs/')}`
                                 3. 切换到'训练监控'标签页 (需要刷新)
                                 """)
+                                st.code(_format_shell_command(command_args), language="bash")
+                                if warnings:
+                                    for warning in warnings:
+                                        st.warning(f"⚠️ {warning}")
                                 
                             except Exception as e:
                                 st.error(f"❌ 启动训练失败: {str(e)}")
@@ -1347,12 +1819,17 @@ def training_page():
                 with col2:
                     if st.button("📖 查看命令", width='stretch'):
                         with st.expander("运行命令"):
-                            config = config_data
-                            cmd = f"""{sys.executable} run_nerf.py \\
-    --config configs/{selected_config} \\
-    --num_gpu {num_gpus} \\
-    --{log_level.lower()}"""
-                            st.code(cmd, language="bash")
+                            command_args = build_training_command(
+                                config_path=Path("configs") / selected_config,
+                                config_data=config_data,
+                                num_gpus=num_gpus,
+                                save_ckpt=save_ckpt,
+                                render_testset=render_test,
+                                enable_tb=enable_tb,
+                                auto_continue=auto_continue,
+                            )
+                            st.code(_format_shell_command(command_args), language="bash")
+                            st.caption(f"当前日志级别选项为 `{log_level}`，训练脚本本身未提供独立日志级别参数。")
                 
                 with col3:
                     if st.button("✅ 验证配置", width='stretch'):
@@ -1374,7 +1851,12 @@ def training_page():
         if not exps:
             st.info("暂无训练实验，请在'启动训练'标签页创建")
         else:
-            selected_exp = st.selectbox("选择实验", exps, key="monitor_exp_select")
+            selected_exp = st.selectbox(
+                "选择实验",
+                exps,
+                format_func=get_experiment_display_name,
+                key="monitor_exp_select"
+            )
             
             # 实验统计信息
             stats = get_experiment_stats(selected_exp)
@@ -1382,7 +1864,7 @@ def training_page():
             if stats:
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
-                    st.metric("📁 实验名", selected_exp)
+                    st.metric("📁 实验名", get_experiment_display_name(selected_exp))
                 with col2:
                     st.metric("💾 大小", f"{stats['size_mb']:.1f}MB")
                 with col3:
@@ -1450,22 +1932,30 @@ def training_page():
                 "选择要对比的实验",
                 exps,
                 default=[exps[0]] if exps else [],
-                max_selections=3
+                max_selections=3,
+                format_func=get_experiment_display_name
             )
             
             if selected_exps:
                 col1, col2 = st.columns(2)
+                metric_map = {exp: parse_test_metric_records(exp) for exp in selected_exps}
+                has_metric_data = any(metric_map.values())
                 
                 with col1:
                     st.markdown("**PSNR 对比**")
                     fig = go.Figure()
                     for exp in selected_exps:
-                        iterations = list(range(0, 51000, 5000))
-                        psnr_values = [15 + i*0.3 + np.random.randn()*0.5 for i in range(len(iterations))]
+                        records = metric_map.get(exp, [])
+                        if not records:
+                            continue
+                        iterations = [record["iter"] for record in records if record.get("psnr") is not None]
+                        psnr_values = [record["psnr"] for record in records if record.get("psnr") is not None]
+                        if not iterations:
+                            continue
                         fig.add_trace(go.Scatter(
                             x=iterations, y=psnr_values,
                             mode='lines+markers',
-                            name=exp,
+                            name=get_experiment_display_name(exp),
                             marker=dict(size=6)
                         ))
                     fig.update_layout(
@@ -1475,28 +1965,39 @@ def training_page():
                         hovermode='x unified',
                         height=400
                     )
-                    st.plotly_chart(fig, width='stretch')
+                    if has_metric_data and fig.data:
+                        st.plotly_chart(fig, width='stretch')
+                    else:
+                        st.info("未找到可用于对比的 PSNR 指标，请先生成 `test_metrics.txt`。")
                 
                 with col2:
-                    st.markdown("**Loss 对比**")
+                    st.markdown("**MSE 对比**")
                     fig = go.Figure()
                     for exp in selected_exps:
-                        iterations = list(range(0, 51000, 5000))
-                        loss_values = [1.0 - i*0.015 + np.random.randn()*0.05 for i in range(len(iterations))]
+                        records = metric_map.get(exp, [])
+                        if not records:
+                            continue
+                        iterations = [record["iter"] for record in records if record.get("mse") is not None]
+                        loss_values = [record["mse"] for record in records if record.get("mse") is not None]
+                        if not iterations:
+                            continue
                         fig.add_trace(go.Scatter(
                             x=iterations, y=loss_values,
                             mode='lines+markers',
-                            name=exp,
+                            name=get_experiment_display_name(exp),
                             marker=dict(size=6)
                         ))
                     fig.update_layout(
-                        title="Loss 对比",
+                        title="MSE 对比",
                         xaxis_title="迭代次数",
-                        yaxis_title="Loss",
+                        yaxis_title="MSE",
                         hovermode='x unified',
                         height=400
                     )
-                    st.plotly_chart(fig, width='stretch')
+                    if has_metric_data and fig.data:
+                        st.plotly_chart(fig, width='stretch')
+                    else:
+                        st.info("暂无 MSE 曲线数据。")
 
 def inference_page():
     """推理与结果页面"""
@@ -1511,30 +2012,75 @@ def inference_page():
         if not exps:
             st.warning("⚠️ 暂无已完成的训练实验")
         else:
-            selected_exp = st.selectbox("选择实验", exps, key="inference_exp_select")
+            selected_exp = st.selectbox(
+                "选择实验",
+                exps,
+                format_func=get_experiment_display_name,
+                key="inference_exp_select"
+            )
             
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown("**推理设置**")
                 render_factor = st.slider("渲染分辨率", 1, 8, 4, help="值越小分辨率越高，生成越慢")
-                render_poses = st.selectbox("渲染方式", ["测试集", "相机路径", "螺旋路径"], key="render_poses_select")
+                render_poses = st.selectbox("渲染方式", ["测试集", "螺旋路径", "EPI路径"], key="render_poses_select")
             
             with col2:
                 st.markdown("**输出设置**")
                 output_format = st.selectbox("输出格式", ["PNG", "JPEG", "MP4"], key="output_format_select")
-                num_workers = st.slider("并行工作数", 1, 8, 4)
+                num_workers = st.slider("GPU并行数", 1, 8, 1, help="映射到 `run_nerf.py --num_gpu`")
             
             st.divider()
+            if render_poses == "测试集":
+                st.caption("当前脚本在测试集模式下会输出 PNG 图像序列。")
+            else:
+                st.caption("当前脚本在路径渲染模式下会输出 MP4 视频。")
             
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("🎯 启动推理", width='stretch'):
-                    st.success("✅ 推理任务已启动")
-                    st.info("💡 推理可能需要几分钟，请耐心等待")
+                    command_args, error_message = build_inference_command(
+                        exp_name=selected_exp,
+                        render_mode=render_poses,
+                        render_factor=render_factor,
+                        num_gpus=num_workers,
+                    )
+                    if error_message:
+                        st.error(f"❌ {error_message}")
+                    else:
+                        exp_dir = get_experiment_dir(selected_exp)
+                        mode_name = "test" if render_poses == "测试集" else ("epi" if render_poses == "EPI路径" else "path")
+                        log_path = exp_dir / f"render_{mode_name}.log"
+                        pid = _launch_background_process(command_args, log_path)
+                        st.success("✅ 推理任务已启动")
+                        st.info(f"""
+                        **推理信息:**
+                        - 实验: {get_experiment_display_name(selected_exp)}
+                        - 模式: {render_poses}
+                        - 进程 PID: {pid}
+                        - 日志: `{log_path}`
+                        """)
+                        st.code(_format_shell_command(command_args), language="bash")
             
             with col2:
                 if st.button("🎬 生成视频", width='stretch'):
-                    st.success("✅ 视频生成任务已启动")
+                    if output_format != "MP4":
+                        st.warning("⚠️ 当前训练脚本的视频导出固定为 MP4，已按 MP4 模式启动。")
+
+                    command_args, error_message = build_inference_command(
+                        exp_name=selected_exp,
+                        render_mode="螺旋路径",
+                        render_factor=render_factor,
+                        num_gpus=num_workers,
+                    )
+                    if error_message:
+                        st.error(f"❌ {error_message}")
+                    else:
+                        log_path = get_experiment_dir(selected_exp) / "render_video.log"
+                        pid = _launch_background_process(command_args, log_path)
+                        st.success("✅ 视频生成任务已启动")
+                        st.info(f"日志: `{log_path}` | PID: {pid}")
+                        st.code(_format_shell_command(command_args), language="bash")
     
     with tab2:
         st.markdown('<h3 style="color: #2ca02c;">查看渲染结果</h3>', unsafe_allow_html=True)
@@ -1543,7 +2089,12 @@ def inference_page():
         if not exps:
             st.info("暂无实验")
         else:
-            selected_exp = st.selectbox("选择实验", exps, key="result_exp")
+            selected_exp = st.selectbox(
+                "选择实验",
+                exps,
+                format_func=get_experiment_display_name,
+                key="result_exp"
+            )
             
             images = list_result_images(selected_exp)
             if not images:
@@ -1581,8 +2132,13 @@ def inference_page():
         if not exps:
             st.info("暂无实验")
         else:
-            selected_exp = st.selectbox("选择实验", exps, key="before_after_exp")
-            render_before_after_compare(selected_exp, widget_key_prefix=f"before_after_{selected_exp}")
+            selected_exp = st.selectbox(
+                "选择实验",
+                exps,
+                format_func=get_experiment_display_name,
+                key="before_after_exp"
+            )
+            render_before_after_compare(selected_exp, widget_key_prefix=f"before_after_{get_experiment_widget_key(selected_exp)}")
 
     with tab4:
         st.markdown('<h3 style="color: #2ca02c;">质量指标分析</h3>', unsafe_allow_html=True)
@@ -1603,46 +2159,49 @@ def inference_page():
         else:
             col1, col2 = st.columns([2, 1])
             with col1:
-                selected_exp = st.selectbox("选择实验", exps, key="analysis_exp_select")
+                selected_exp = st.selectbox(
+                    "选择实验",
+                    exps,
+                    format_func=get_experiment_display_name,
+                    key="inference_metric_exp_select"
+                )
             with col2:
-                metric_type = st.selectbox("指标类型", ["PSNR", "SSIM", "LPIPS"], key="analysis_metric_type_select")
-            
-            # 模拟指标数据
-            test_images = list(range(1, 11))
-            metrics = {
-                'PSNR': [28 + np.random.randn() for _ in test_images],
-                'SSIM': [0.85 + np.random.randn()*0.05 for _ in test_images],
-                'LPIPS': [0.1 + np.random.randn()*0.02 for _ in test_images],
-            }
-            
-            fig = go.Figure()
-            fig.add_trace(go.Bar(
-                x=test_images,
-                y=metrics[metric_type],
-                marker=dict(color=metrics[metric_type], colorscale='Viridis'),
-                text=[f"{v:.2f}" for v in metrics[metric_type]],
-                textposition='auto',
-                name=metric_type
-            ))
-            fig.update_layout(
-                title=f"{metric_type} 分布",
-                xaxis_title="测试图像索引",
-                yaxis_title=metric_type,
-                height=400
-            )
-            st.plotly_chart(fig, width='stretch')
-            
-            # 统计信息
-            col1, col2, col3, col4 = st.columns(4)
-            metric_values = metrics[metric_type]
-            with col1:
-                st.metric("平均值", f"{np.mean(metric_values):.3f}")
-            with col2:
-                st.metric("最大值", f"{np.max(metric_values):.3f}")
-            with col3:
-                st.metric("最小值", f"{np.min(metric_values):.3f}")
-            with col4:
-                st.metric("标准差", f"{np.std(metric_values):.3f}")
+                metric_type = st.selectbox("指标类型", ["PSNR", "SSIM", "LPIPS"], key="inference_metric_type_select")
+
+            metric_records = parse_test_metric_records(selected_exp)
+            metric_key = metric_type.lower()
+            metric_values = [record[metric_key] for record in metric_records if record.get(metric_key) is not None]
+            metric_iters = [record["iter"] for record in metric_records if record.get(metric_key) is not None]
+
+            if not metric_values:
+                st.info("未找到该实验的真实评估指标，请先完成测试集评估。")
+            else:
+                fig = go.Figure()
+                fig.add_trace(go.Bar(
+                    x=metric_iters,
+                    y=metric_values,
+                    marker=dict(color=metric_values, colorscale='Viridis'),
+                    text=[f"{v:.4f}" for v in metric_values],
+                    textposition='auto',
+                    name=metric_type
+                ))
+                fig.update_layout(
+                    title=f"{metric_type} 历次评估结果",
+                    xaxis_title="迭代次数",
+                    yaxis_title=metric_type,
+                    height=400
+                )
+                st.plotly_chart(fig, width='stretch')
+
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("最新值", f"{metric_values[-1]:.4f}")
+                with col2:
+                    st.metric("平均值", f"{np.mean(metric_values):.4f}")
+                with col3:
+                    st.metric("最大值", f"{np.max(metric_values):.4f}")
+                with col4:
+                    st.metric("最小值", f"{np.min(metric_values):.4f}")
 
 def analysis_page():
     """对比分析页面"""
@@ -1659,9 +2218,9 @@ def analysis_page():
         else:
             col1, col2 = st.columns(2)
             with col1:
-                exp1 = st.selectbox("实验1", exps, key="exp1_select")
+                exp1 = st.selectbox("实验1", exps, format_func=get_experiment_display_name, key="exp1_select")
             with col2:
-                exp2 = st.selectbox("实验2", exps, index=min(1, len(exps)-1), key="exp2_select")
+                exp2 = st.selectbox("实验2", exps, index=min(1, len(exps)-1), format_func=get_experiment_display_name, key="exp2_select")
             
             if exp1 != exp2:
                 st.divider()
@@ -1674,7 +2233,7 @@ def analysis_page():
                     
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.markdown(f"### {exp1}")
+                        st.markdown(f"### {get_experiment_display_name(exp1)}")
                         try:
                             img1 = Image.open(images1[img_idx])
                             st.image(img1, width='stretch')
@@ -1682,7 +2241,7 @@ def analysis_page():
                             st.error("图像加载失败")
                     
                     with col2:
-                        st.markdown(f"### {exp2}")
+                        st.markdown(f"### {get_experiment_display_name(exp2)}")
                         try:
                             img2 = Image.open(images2[img_idx])
                             st.image(img2, width='stretch')
@@ -1692,13 +2251,19 @@ def analysis_page():
                     st.divider()
                     
                     # 对比指标
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric(f"PSNR ({exp1})", "28.50 dB", delta="1.2 dB")
-                    with col2:
-                        st.metric(f"PSNR ({exp2})", "29.70 dB")
-                    with col3:
-                        st.metric("PSNR 差异", "1.2 dB", delta_color="inverse")
+                    metric1 = get_latest_metric_record(exp1)
+                    metric2 = get_latest_metric_record(exp2)
+                    if metric1 and metric2 and metric1.get("psnr") is not None and metric2.get("psnr") is not None:
+                        psnr_delta = metric2["psnr"] - metric1["psnr"]
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric(f"PSNR ({get_experiment_name(exp1)})", f"{metric1['psnr']:.3f} dB")
+                        with col2:
+                            st.metric(f"PSNR ({get_experiment_name(exp2)})", f"{metric2['psnr']:.3f} dB")
+                        with col3:
+                            st.metric("PSNR 差异", f"{psnr_delta:.3f} dB", delta=f"{psnr_delta:.3f} dB")
+                    else:
+                        st.info("未找到两组实验的真实 PSNR 记录，暂无法显示量化对比。")
     
     with tab2:
         st.markdown('<h3 style="color: #2ca02c;">性能分析报告</h3>', unsafe_allow_html=True)
@@ -1713,11 +2278,14 @@ def analysis_page():
             exp_data = []
             for exp in exps[:5]:
                 stats = get_experiment_stats(exp)
+                latest_metrics = get_latest_metric_record(exp) or {}
                 exp_data.append({
-                    "实验名": exp,
+                    "实验名": get_experiment_display_name(exp),
                     "大小(MB)": f"{stats['size_mb']:.1f}",
                     "检查点数": stats['ckpt_count'],
                     "输出数": stats['images_count'],
+                    "最新PSNR": f"{latest_metrics['psnr']:.3f}" if latest_metrics.get('psnr') is not None else "N/A",
+                    "最新SSIM": f"{latest_metrics['ssim']:.4f}" if latest_metrics.get('ssim') is not None else "N/A",
                     "创建时间": stats['created'],
                 })
             
@@ -1736,8 +2304,12 @@ def analysis_page():
                 st.metric("总检查点数", total_checkpoints)
             
             with col3:
-                total_images = sum([row["输出数"] for row in exp_data])
-                st.metric("总输出图像", total_images)
+                psnr_values = [float(row["最新PSNR"]) for row in exp_data if row["最新PSNR"] != "N/A"]
+                if psnr_values:
+                    st.metric("平均最新 PSNR", f"{np.mean(psnr_values):.3f} dB")
+                else:
+                    total_images = sum([row["输出数"] for row in exp_data])
+                    st.metric("总输出图像", total_images)
 
 # ==================== 主程序 ====================
 
@@ -1749,7 +2321,8 @@ def main():
         st.markdown("### 📌 导航菜单")
         page = st.radio(
             "选择页面",
-            ["首页", "配置", "训练", "推理", "分析"],
+            ["首页", "配置", "训练", "推理", "模型", "分析"],
+            key="sidebar_page",
             label_visibility="collapsed"
         )
         st.session_state.page = page
@@ -1792,13 +2365,13 @@ def main():
         training_page()
     elif st.session_state.page == "推理":
         inference_page()
+    elif st.session_state.page == "模型":
+        model_loader_page()
     elif st.session_state.page == "分析":
         analysis_page()
     
     st.divider()
-    st.markdown("""
-    </p>
-    """, unsafe_allow_html=True)
+    st.caption("Deblur-NeRF UI")
 
 if __name__ == "__main__":
     main()
