@@ -50,7 +50,7 @@ class ToneMapping(nn.Module):
 def visualize_crf2d(crf: nn.Module, min_=0, max_=1, mine=-3, maxe=3, islog=False, reverse=False):
     i = torch.linspace(min_, max_, 256)
     e = torch.linspace(mine, maxe, 256)
-    x, y = torch.meshgrid(i, e)
+    x, y = torch.meshgrid(i, e, indexing='ij')
     with torch.no_grad():
         out = crf(-x if reverse else x, y)
     import matplotlib.pyplot as plt
@@ -316,14 +316,22 @@ class NeRF(nn.Module):
 
 
 # Ray helpers
+def _camera_matrix_to_tensor(K, ref_tensor):
+    if torch.is_tensor(K):
+        return K.to(device=ref_tensor.device, dtype=ref_tensor.dtype)
+    return torch.as_tensor(K, device=ref_tensor.device, dtype=ref_tensor.dtype)
+
+
 def get_rays(H, W, K, c2w):
-    i, j = torch.meshgrid(torch.linspace(0, W - 1, W),
-                          torch.linspace(0, H - 1, H))  # pytorch's meshgrid has indexing='ij'
-    i = i.t()
-    j = j.t()
+    K = _camera_matrix_to_tensor(K, c2w)
+    j, i = torch.meshgrid(
+        torch.arange(H, device=c2w.device, dtype=c2w.dtype),
+        torch.arange(W, device=c2w.device, dtype=c2w.dtype),
+        indexing='ij'
+    )
     dirs = torch.stack([(i + (HALF_PIX - K[0][2])) / K[0][0], -(j + (HALF_PIX - K[1][2])) / K[1][1], -torch.ones_like(i)], -1)
     # Rotate ray directions from camera frame to the world frame
-    rays_d = torch.sum(dirs[..., np.newaxis, :] * c2w[:3, :3],
+    rays_d = torch.sum(dirs[..., None, :] * c2w[:3, :3],
                        -1)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
     # Translate camera frame's origin to the world frame. It is the origin of all rays.
     rays_o = c2w[:3, -1].expand(rays_d.shape)

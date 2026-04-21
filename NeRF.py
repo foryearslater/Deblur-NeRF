@@ -590,10 +590,13 @@ class NeRFAll(nn.Module):
 
         t = time.time()
 
-        rayx, rayy = torch.meshgrid(torch.linspace(0, W - 1, W),
-                                    torch.linspace(0, H - 1, H))
-        rayx = rayx.t().reshape(-1, 1) + HALF_PIX
-        rayy = rayy.t().reshape(-1, 1) + HALF_PIX
+        rayy, rayx = torch.meshgrid(
+            torch.arange(H, device=render_poses.device, dtype=render_poses.dtype),
+            torch.arange(W, device=render_poses.device, dtype=render_poses.dtype),
+            indexing='ij'
+        )
+        rayx = rayx.reshape(-1, 1) + HALF_PIX
+        rayy = rayy.reshape(-1, 1) + HALF_PIX
 
         for imgidx, c2w in zip(images_indices, render_poses):
 
