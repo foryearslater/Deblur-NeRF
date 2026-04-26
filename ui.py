@@ -428,9 +428,8 @@ def save_config(config_data, config_name):
 
 
 def _set_page(page_name):
-    """同步首页按钮与侧边栏导航状态"""
+    """更新目标页面，侧边栏状态在下一次 rerun 前同步。"""
     st.session_state.page = page_name
-    st.session_state.sidebar_page = page_name
 
 
 def _to_bool(value, default=False):
@@ -2314,6 +2313,9 @@ def analysis_page():
 # ==================== 主程序 ====================
 
 def main():
+    if st.session_state.get("sidebar_page") != st.session_state.get("page"):
+        st.session_state.sidebar_page = st.session_state.page
+
     with st.sidebar:
         st.title("🎬 Deblur-NeRF")
         st.divider()
