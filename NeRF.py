@@ -462,7 +462,8 @@ class NeRFAll(nn.Module):
                 return rgb, rgb0, other_loss
             else:
                 rgb, depth, acc, extras = self.render(H, W, K, chunk, rays, **kwargs)
-                return self.tonemapping(rgb), self.tonemapping(extras['rgb0']), {}
+                rgb0 = extras.get('rgb0', rgb)
+                return self.tonemapping(rgb), self.tonemapping(rgb0), {}
 
         #  evaluation
         else:
@@ -548,10 +549,16 @@ class NeRFAll(nn.Module):
         """
         render image specified by the render_poses
         """
+        render_K = K
         if render_factor != 0:
             # Render downsampled for speed
             H = H // render_factor
             W = W // render_factor
+            render_K = _camera_matrix_to_tensor(K, render_poses[0]).clone()
+            render_K[0, 0] /= render_factor
+            render_K[1, 1] /= render_factor
+            render_K[0, 2] /= render_factor
+            render_K[1, 2] /= render_factor
 
         rgbs = []
         depths = []
@@ -560,9 +567,9 @@ class NeRFAll(nn.Module):
         for i, c2w in enumerate(render_poses):
             print(i, time.time() - t)
             t = time.time()
-            rays = get_rays(H, W, K, c2w)
+            rays = get_rays(H, W, render_K, c2w)
             rays = torch.stack(rays, dim=-1)
-            rgb, depth, acc, extras = self.render(H, W, K, chunk=chunk, rays=rays, c2w=c2w[:3, :4], **render_kwargs)
+            rgb, depth, acc, extras = self.render(H, W, render_K, chunk=chunk, rays=rays, c2w=c2w[:3, :4], **render_kwargs)
 
             rgbs.append(rgb)
             depths.append(depth)
@@ -579,10 +586,16 @@ class NeRFAll(nn.Module):
         """
         
         """
+        render_K = K
         if render_factor != 0:
             # Render downsampled for speed
             H = H // render_factor
             W = W // render_factor
+            render_K = _camera_matrix_to_tensor(K, render_poses[0]).clone()
+            render_K[0, 0] /= render_factor
+            render_K[1, 1] /= render_factor
+            render_K[0, 2] /= render_factor
+            render_K[1, 2] /= render_factor
 
         rgbs = []
         depths = []
@@ -603,14 +616,14 @@ class NeRFAll(nn.Module):
             i = int(imgidx.item())
             print(i, time.time() - t)
             t = time.time()
-            rays = get_rays(H, W, K, c2w)
+            rays = get_rays(H, W, render_K, c2w)
             rays = torch.stack(rays, dim=-1).reshape(H * W, 3, 2)
 
             rays_info = {}
 
             if self.kernelsnet.require_depth:
                 with torch.no_grad():
-                    rgb, depth, acc, extras = self.render(H, W, K, chunk, rays, **render_kwargs)
+                    rgb, depth, acc, extras = self.render(H, W, render_K, chunk, rays, **render_kwargs)
                     rays_info["ray_depth"] = depth[..., None]
 
             i = i if i < self.kernelsnet.num_img else 1
@@ -618,11 +631,11 @@ class NeRFAll(nn.Module):
             rays_info["rays_x"] = rayx
             rays_info["rays_y"] = rayy
 
-            new_rays, weight, _ = self.kernelsnet(H, W, K, rays, rays_info)
+            new_rays, weight, _ = self.kernelsnet(H, W, render_K, rays, rays_info)
 
             new_rays = new_rays[:, render_point]
             weight = weight[:, render_point]
-            rgb, depth, acc, extras = self.render(H, W, K, chunk=chunk, rays=new_rays.reshape(-1, 3, 2),
+            rgb, depth, acc, extras = self.render(H, W, render_K, chunk=chunk, rays=new_rays.reshape(-1, 3, 2),
                                                   c2w=c2w[:3, :4], **render_kwargs)
 
             rgbs.append(rgb.reshape(H, W, 3))

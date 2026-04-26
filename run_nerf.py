@@ -1,5 +1,6 @@
 import os
 import time
+import inspect
 
 import cv2
 import imageio
@@ -92,13 +93,13 @@ def config_parser():
     parser.add_argument("--rgb_activate", type=str, default='sigmoid',
                         help='activate function for rgb output, choose among "none", "sigmoid"')
     parser.add_argument("--sigma_activate", type=str, default='relu',
-                        help='activate function for sigma output, choose among "relu", "softplue"')
+                        help='activate function for sigma output, choose among "relu", "softplus"')
 
     # ===============================
     # Kernel optimizing
     # ===============================
-    parser.add_argument("--kernel_type", type=str, default='kernel',
-                        help='choose among <none>, <itsampling>, <sparsekernel>')
+    parser.add_argument("--kernel_type", type=str, default='deformablesparsekernel',
+                        help='choose among <none>, <deformablesparsekernel>')
     parser.add_argument("--kernel_isglobal", action='store_true',
                         help='if specified, the canonical kernel position is global')
     parser.add_argument("--kernel_start_iter", type=int, default=0,
@@ -266,8 +267,7 @@ def train():
         return
 
     imagesf = images
-    images = (images * 255).astype(np.uint8)
-    images_idx = np.arange(0, len(images))
+    images_idx = np.arange(0, len(imagesf))
 
     # Cast intrinsics to right types
     H, W, focal = hwf
@@ -312,7 +312,7 @@ def train():
 
     # The DSK module
     if args.kernel_type == 'deformablesparsekernel':
-        kernelnet = DSKnet(len(images), torch.tensor(poses[:, :3, :4]),
+        kernelnet = DSKnet(len(imagesf), torch.tensor(poses[:, :3, :4]),
                            args.kernel_ptnum, args.kernel_hwindow,
                            random_hwindow=args.kernel_random_hwindow, in_embed=args.kernel_rand_embed,
                            random_mode=args.kernel_random_mode,
@@ -333,7 +333,19 @@ def train():
 
     # Create nerf model
     nerf = NeRFAll(args, kernelnet)
-    nerf = nn.DataParallel(nerf, list(range(args.num_gpu)))
+    available_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
+    effective_num_gpu = 1
+    if DEVICE != 'cuda' and args.num_gpu > 1:
+        print("[WARN] num_gpu > 1 but CUDA is unavailable, falling back to CPU single-process mode.")
+    elif DEVICE == 'cuda' and args.num_gpu > 1:
+        if available_gpus == 0:
+            print("[WARN] num_gpu > 1 but CUDA is unavailable, falling back to a single-process model.")
+        else:
+            effective_num_gpu = min(args.num_gpu, available_gpus)
+            if effective_num_gpu != args.num_gpu:
+                print(f"[WARN] Requested {args.num_gpu} GPUs, but only {available_gpus} are visible. "
+                      f"Using {effective_num_gpu} GPUs instead.")
+            nerf = nn.DataParallel(nerf, list(range(effective_num_gpu)))
 
     optim_params = nerf.parameters()
 
@@ -351,7 +363,10 @@ def train():
     if len(ckpts) > 0 and not args.no_reload:
         ckpt_path = ckpts[-1]
         print('Reloading from', ckpt_path)
-        ckpt = torch.load(ckpt_path)
+        load_kwargs = {'map_location': DEVICE}
+        if 'weights_only' in inspect.signature(torch.load).parameters:
+            load_kwargs['weights_only'] = False
+        ckpt = torch.load(ckpt_path, **load_kwargs)
 
         start = ckpt['global_step']
         optimizer.load_state_dict(ckpt['optimizer_state_dict'])
@@ -404,7 +419,7 @@ def train():
             os.makedirs(testsavedir, exist_ok=True)
             print('test poses shape', render_poses.shape)
 
-            dummy_num = ((len(poses) - 1) // args.num_gpu + 1) * args.num_gpu - len(poses)
+            dummy_num = ((len(poses) - 1) // effective_num_gpu + 1) * effective_num_gpu - len(poses)
             dummy_poses = torch.eye(3, 4).unsqueeze(0).expand(dummy_num, 3, 4).type_as(render_poses)
             print(f"Append {dummy_num} # of poses to fill all the GPUs")
             nerf.eval()
@@ -496,11 +511,9 @@ def train():
     i_batch = 0
 
     # Move training data to GPU
-    images = torch.tensor(images).to(DEVICE)
-    imagesf = torch.tensor(imagesf).to(DEVICE)
-
+    imagesf = torch.tensor(imagesf)
     poses = torch.tensor(poses).to(DEVICE)
-    train_datas = {k: torch.tensor(v).to(DEVICE) for k, v in train_datas.items()}
+    train_datas = {k: torch.from_numpy(v) for k, v in train_datas.items()}
 
     N_iters = args.N_iters + 1
     print('Begin')
@@ -517,18 +530,19 @@ def train():
 
         # Sample random ray batch
         iter_data = {k: v[i_batch:i_batch + N_rand] for k, v in train_datas.items()}
-        batch_rays = iter_data.pop('rays').permute(0, 2, 1)
+        batch_rays = iter_data.pop('rays').permute(0, 2, 1).to(DEVICE)
+        iter_data = {k: v.to(DEVICE) for k, v in iter_data.items()}
 
         i_batch += N_rand
         if i_batch >= len(train_datas['rays']):
             print("Shuffle data after an epoch!")
-            shuffle_idx = np.random.permutation(len(train_datas['rays']))
+            shuffle_idx = torch.randperm(len(train_datas['rays']))
             train_datas = {k: v[shuffle_idx] for k, v in train_datas.items()}
             i_batch = 0
 
         #####  Core optimization loop  #####
         nerf.train()
-        if i == args.kernel_start_iter:
+        if i == args.kernel_start_iter and DEVICE == 'cuda':
             torch.cuda.empty_cache()
         rgb, rgb0, extra_loss = nerf(H, W, K, chunk=args.chunk,
                                      rays=batch_rays, rays_info=iter_data,
@@ -606,7 +620,7 @@ def train():
             testsavedir = os.path.join(basedir, expname, 'testset_{:06d}'.format(i))
             os.makedirs(testsavedir, exist_ok=True)
             print('test poses shape', poses.shape)
-            dummy_num = ((len(poses) - 1) // args.num_gpu + 1) * args.num_gpu - len(poses)
+            dummy_num = ((len(poses) - 1) // effective_num_gpu + 1) * effective_num_gpu - len(poses)
             dummy_poses = torch.eye(3, 4).unsqueeze(0).expand(dummy_num, 3, 4).type_as(render_poses)
             print(f"Append {dummy_num} # of poses to fill all the GPUs")
             with torch.no_grad():
@@ -635,7 +649,8 @@ def train():
                 tensorboard.add_scalar("Test MSE", test_mse, global_step)
                 tensorboard.add_scalar("Test PSNR", test_psnr, global_step)
                 tensorboard.add_scalar("Test SSIM", test_ssim, global_step)
-                tensorboard.add_scalar("Test LPIPS", test_lpips, global_step)
+                if np.isfinite(test_lpips):
+                    tensorboard.add_scalar("Test LPIPS", test_lpips, global_step)
 
             with open(test_metric_file, 'a') as outfile:
                 outfile.write(f"iter{i}/globalstep{global_step}: MSE:{test_mse:.8f} PSNR:{test_psnr:.8f}"

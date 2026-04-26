@@ -1,5 +1,6 @@
 import numpy as np
 import os, imageio
+from PIL import Image
 
 
 ########## Slightly modified version of LLFF data loading code 
@@ -18,23 +19,19 @@ def _minify(basedir, factors=[], resolutions=[]):
     if not needtoload:
         return
 
-    from shutil import copy
-    from subprocess import check_output
-
     imgdir = os.path.join(basedir, 'images')
     imgs = [os.path.join(imgdir, f) for f in sorted(os.listdir(imgdir))]
     imgs = [f for f in imgs if any([f.endswith(ex) for ex in ['JPG', 'jpg', 'png', 'jpeg', 'PNG']])]
-    imgdir_orig = imgdir
-
-    wd = os.getcwd()
 
     for r in factors + resolutions:
         if isinstance(r, int):
             name = 'images_{}'.format(r)
-            resizearg = '{}%'.format(100. / r)
+            resize_factor = 1. / r
+            target_size = None
         else:
             name = 'images_{}x{}'.format(r[1], r[0])
-            resizearg = '{}x{}'.format(r[1], r[0])
+            resize_factor = None
+            target_size = (r[1], r[0])
         imgdir = os.path.join(basedir, name)
         if os.path.exists(imgdir):
             continue
@@ -42,18 +39,18 @@ def _minify(basedir, factors=[], resolutions=[]):
         print('Minifying', r, basedir)
 
         os.makedirs(imgdir)
-        check_output('cp {}/* {}'.format(imgdir_orig, imgdir), shell=True)
-
-        ext = imgs[0].split('.')[-1]
-        args = ' '.join(['mogrify', '-resize', resizearg, '-format', 'png', '*.{}'.format(ext)])
-        print(args)
-        os.chdir(imgdir)
-        check_output(args, shell=True)
-        os.chdir(wd)
-
-        if ext != 'png':
-            check_output('rm {}/*.{}'.format(imgdir, ext), shell=True)
-            print('Removed duplicates')
+        for src in imgs:
+            with Image.open(src) as img:
+                img = img.convert('RGB')
+                if target_size is None:
+                    dst_w = max(1, int(round(img.width * resize_factor)))
+                    dst_h = max(1, int(round(img.height * resize_factor)))
+                    dst_size = (dst_w, dst_h)
+                else:
+                    dst_size = target_size
+                resized = img.resize(dst_size, Image.LANCZOS)
+                stem = os.path.splitext(os.path.basename(src))[0]
+                resized.save(os.path.join(imgdir, stem + '.png'))
         print('Done')
 
 
@@ -68,10 +65,9 @@ def _load_data(basedir, factor=None, width=None, height=None, load_imgs=True):
 
     sfx = ''
 
-    if factor is not None:
+    if factor not in [None, 1]:
         sfx = '_{}'.format(factor)
         _minify(basedir, factors=[factor])
-        factor = factor
     else:
         factor = 1
 

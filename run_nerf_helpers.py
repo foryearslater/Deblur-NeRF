@@ -429,10 +429,21 @@ def smart_load_state_dict(model: nn.Module, state_dict: dict):
         state_dict_fn.update(state_dict_fine)
         state_dict = state_dict_fn
     elif "network_state_dict" in state_dict.keys():
-        state_dict = {k[7:]: v for k, v in state_dict["network_state_dict"].items()}
+        state_dict = {
+            (k[7:] if k.startswith("module.") else k): v
+            for k, v in state_dict["network_state_dict"].items()
+        }
     else:
         state_dict = state_dict
 
     if isinstance(model, nn.DataParallel):
-        state_dict = {"module." + k: v for k, v in state_dict.items()}
+        state_dict = {
+            (k if k.startswith("module.") else "module." + k): v
+            for k, v in state_dict.items()
+        }
+    else:
+        state_dict = {
+            (k[7:] if k.startswith("module.") else k): v
+            for k, v in state_dict.items()
+        }
     model.load_state_dict(state_dict)
