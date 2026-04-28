@@ -763,6 +763,51 @@ def _extract_latest_iter_from_ckpt(exp_dir: Path):
     return latest
 
 
+def parse_latest_train_iter_from_log(exp_name):
+    """从 training.log 中提取最近一次训练迭代"""
+    log_path = get_experiment_log_path(exp_name)
+    if not log_path.exists():
+        return None
+
+    latest_iter = None
+    iter_pattern = re.compile(r"\[TRAIN\]\s+Iter:\s*(\d+)")
+    try:
+        with open(log_path, "r") as f:
+            for line in f:
+                match = iter_pattern.search(line)
+                if match:
+                    latest_iter = int(match.group(1))
+    except Exception:
+        return None
+    return latest_iter
+
+
+def detect_training_log_issue(exp_name):
+    """从 training.log 中查找明显异常线索"""
+    log_path = get_experiment_log_path(exp_name)
+    if not log_path.exists():
+        return None
+
+    suspicious_patterns = (
+        "traceback",
+        "runtimeerror",
+        "outofmemoryerror",
+        "cuda out of memory",
+        "error:",
+    )
+    latest_issue = None
+    try:
+        with open(log_path, "r") as f:
+            for raw_line in f:
+                line = raw_line.strip()
+                lowered = line.lower()
+                if line and any(pattern in lowered for pattern in suspicious_patterns):
+                    latest_issue = line
+    except Exception:
+        return None
+    return latest_issue
+
+
 def parse_test_metrics(exp_name):
     """解析 logs/<exp>/test_metrics.txt 中的 iter 与 PSNR"""
     metric_records = parse_test_metric_records(exp_name)
@@ -833,18 +878,36 @@ def infer_training_status(exp_name):
     stats = get_experiment_stats(exp_name) or {}
     args_data = get_experiment_args(exp_name)
     target_iters = _to_int(args_data.get("N_iters", 0), 0)
-    latest_iter = _extract_latest_iter_from_ckpt(exp_dir) or 0
+    latest_ckpt_iter = _extract_latest_iter_from_ckpt(exp_dir) or 0
+    latest_log_iter = parse_latest_train_iter_from_log(exp_name) or 0
+    latest_iter = max(latest_ckpt_iter, latest_log_iter)
     progress_percent = int(min(100, (latest_iter / target_iters * 100))) if target_iters > 0 else 0
+    if latest_iter > 0 and progress_percent == 0 and target_iters > 0:
+        progress_percent = 1
 
     has_outputs = (stats.get("ckpt_count", 0) > 0) or (stats.get("images_count", 0) > 0)
+    has_log = get_experiment_log_path(exp_name).exists()
+    log_issue = detect_training_log_issue(exp_name)
 
-    if latest_iter > 0:
+    if latest_ckpt_iter > 0:
         label = "训练中/已训练"
-        detail = f"检测到最新检查点: iter={latest_iter}"
+        detail = f"检测到最新检查点: iter={latest_ckpt_iter}"
         is_running_hint = True
     elif has_outputs:
         label = "已产出结果"
         detail = "检测到图像输出，但尚未检测到标准检查点文件"
+        is_running_hint = True
+    elif log_issue:
+        label = "训练中断/日志异常"
+        detail = f"训练日志显示异常: {log_issue}"
+        is_running_hint = False
+    elif latest_log_iter > 0:
+        label = "训练进行中（尚未保存检查点）"
+        detail = f"日志显示最近训练到 iter={latest_log_iter}，但尚未到首次保存检查点/测试图的时机"
+        is_running_hint = True
+    elif has_log:
+        label = "训练已启动/初始化中"
+        detail = "已检测到 training.log，但尚未出现训练迭代、检查点或测试图像"
         is_running_hint = True
     else:
         label = "未检测到有效训练输出"
@@ -858,6 +921,8 @@ def infer_training_status(exp_name):
         "latest_iter": latest_iter,
         "target_iters": target_iters,
         "is_running_hint": is_running_hint,
+        "latest_log_iter": latest_log_iter,
+        "has_log": has_log,
     }
 
 def list_results(exp_name):
@@ -1036,6 +1101,11 @@ def get_experiment_args(exp_name):
     """读取 logs/<exp>/args.txt"""
     args_file = get_experiment_dir(exp_name) / "args.txt"
     return _parse_kv_file(args_file)
+
+
+def get_experiment_log_path(exp_name):
+    """返回实验默认训练日志路径"""
+    return get_experiment_dir(exp_name) / "training.log"
 
 
 def _to_int(value, default=0):
