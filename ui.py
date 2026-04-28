@@ -6,7 +6,6 @@ Deblur-NeRF 增强UI系统 - 完整版
 
 import streamlit as st
 import os
-import json
 import numpy as np
 from pathlib import Path
 import subprocess
@@ -15,12 +14,23 @@ import sys
 import re
 import shlex
 from datetime import datetime
-import pandas as pd
 from PIL import Image
 import psutil
 from collections import defaultdict
-import plotly.graph_objects as go
-import plotly.express as px
+
+try:
+    import pandas as pd
+    PANDAS_IMPORT_ERROR = None
+except Exception as exc:
+    pd = None
+    PANDAS_IMPORT_ERROR = exc
+
+try:
+    import plotly.graph_objects as go
+    PLOTLY_IMPORT_ERROR = None
+except Exception as exc:
+    go = None
+    PLOTLY_IMPORT_ERROR = exc
 
 # ==================== 页面配置 ====================
 st.set_page_config(
@@ -366,7 +376,53 @@ PRESET_CONFIGS = {
     },
 }
 
+SUPPORTED_DATASET_TYPES = ["llff"]
+DEFAULT_DATASET_TYPE = SUPPORTED_DATASET_TYPES[0]
+FORM_MANAGED_CONFIG_KEYS = {
+    "expname",
+    "datadir",
+    "basedir",
+    "tbdir",
+    "dataset_type",
+    "factor",
+    "netdepth",
+    "netwidth",
+    "netdepth_fine",
+    "netwidth_fine",
+    "use_viewdirs",
+    "N_iters",
+    "N_rand",
+    "lrate",
+    "lrate_decay",
+    "chunk",
+    "N_samples",
+    "N_importance",
+    "perturb",
+    "raw_noise_std",
+    "kernel_type",
+    "kernel_ptnum",
+    "kernel_hwindow",
+    "kernel_img_embed",
+    "i_print",
+    "i_tensorboard",
+    "i_weights",
+    "i_testset",
+    "i_video",
+}
+
 # ==================== 核心函数 ====================
+
+
+def _parse_config_line(raw_line):
+    """解析配置行，兼容 key=value、裸 flag 和行内注释。"""
+    line = raw_line.split("#", 1)[0].strip()
+    if not line:
+        return None, None
+    if "=" in line:
+        key, value = line.split("=", 1)
+        return key.strip(), value.strip()
+    return line, "True"
+
 
 def get_config_files():
     """获取所有配置文件"""
@@ -391,12 +447,10 @@ def load_config(config_file):
     config = {}
     try:
         with open(config_path, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#'):
-                    if '=' in line:
-                        key, value = line.split('=', 1)
-                        config[key.strip()] = value.strip()
+            for raw_line in f:
+                key, value = _parse_config_line(raw_line)
+                if key is not None:
+                    config[key] = value
     except Exception as e:
         st.error(f"❌ 加载配置出错：{e}")
     return config
@@ -418,8 +472,11 @@ def save_config(config_data, config_name):
             f.write("# Deblur-NeRF Configuration\n")
             f.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
             for key, value in config_data.items():
-                if value:
-                    f.write(f"{key} = {value}\n")
+                if value is None:
+                    continue
+                if isinstance(value, str) and not value.strip():
+                    continue
+                f.write(f"{key} = {value}\n")
         st.success(f"✅ 配置已保存到 {config_path}")
         return True
     except Exception as e:
@@ -430,6 +487,22 @@ def save_config(config_data, config_name):
 def _set_page(page_name):
     """更新目标页面，侧边栏状态在下一次 rerun 前同步。"""
     st.session_state.page = page_name
+
+
+def _sync_config_editor_widget_state():
+    """在控件实例化前，将配置同步到带 key 的编辑器控件。"""
+    current_config = st.session_state.get("current_config", {})
+    desired_dataset_type = _normalize_dataset_type(
+        current_config.get("dataset_type", DEFAULT_DATASET_TYPE)
+    )
+    desired_kernel_type = _normalize_kernel_type(
+        current_config.get("kernel_type", "deformablesparsekernel")
+    )
+
+    if st.session_state.get("dataset_type") != desired_dataset_type:
+        st.session_state.dataset_type = desired_dataset_type
+    if st.session_state.get("kernel_type") != desired_kernel_type:
+        st.session_state.kernel_type = desired_kernel_type
 
 
 def _to_bool(value, default=False):
@@ -455,6 +528,22 @@ def _normalize_kernel_type(value):
     if normalized == "none":
         return "none"
     return normalized
+
+
+def _normalize_dataset_type(value):
+    """当前项目仅支持 llff，其余值回退到默认类型。"""
+    normalized = str(value).strip().lower()
+    if normalized in SUPPORTED_DATASET_TYPES:
+        return normalized
+    return DEFAULT_DATASET_TYPE
+
+
+def _plotly_is_available():
+    """检查图表依赖是否可用。"""
+    if go is None:
+        st.warning(f"图表功能暂不可用：`plotly` 导入失败（{PLOTLY_IMPORT_ERROR}）。")
+        return False
+    return True
 
 
 def _format_shell_command(command_args):
@@ -567,6 +656,10 @@ def validate_config(config_data):
         factor = int(config_data.get("factor", 4))
         if factor < 1:
             errors.append("factor必须 >= 1")
+
+        dataset_type = str(config_data.get("dataset_type", DEFAULT_DATASET_TYPE)).strip().lower()
+        if dataset_type not in SUPPORTED_DATASET_TYPES:
+            errors.append("当前项目仅支持 LLFF 数据集（dataset_type = llff）")
 
         kernel_type = _normalize_kernel_type(config_data.get("kernel_type", "deformablesparsekernel"))
         if kernel_type not in {"none", "deformablesparsekernel"}:
@@ -792,11 +885,9 @@ def _parse_kv_file(file_path):
     try:
         with open(path, "r") as f:
             for raw in f:
-                line = raw.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                key, value = line.split("=", 1)
-                data[key.strip()] = value.strip()
+                key, value = _parse_config_line(raw)
+                if key is not None:
+                    data[key] = value
     except Exception:
         return {}
     return data
@@ -1018,6 +1109,40 @@ def list_result_images(exp_name):
             break
 
     return images
+
+
+def list_result_videos(exp_name):
+    """返回实验可视化结果视频（优先 render_only 路径渲染，其次训练期间导出视频）"""
+    exp_dir = get_experiment_dir(exp_name)
+    if not exp_dir.exists():
+        return []
+
+    search_dirs = sorted(
+        [d for d in exp_dir.glob("renderonly_path_*") if d.is_dir()],
+        key=lambda d: d.name,
+        reverse=True,
+    )
+    search_dirs.append(exp_dir)
+
+    candidates = []
+    for result_dir in search_dirs:
+        candidates.extend(sorted(result_dir.glob("*.mp4")))
+        candidates.extend(sorted(result_dir.glob("*.mov")))
+        candidates.extend(sorted(result_dir.glob("*.avi")))
+
+    # 训练过程中导出的 spiral 视频保存在实验根目录，按文件名倒序展示最近结果。
+    candidates.extend(sorted(exp_dir.glob("*_spiral_*_rgb.mp4"), reverse=True))
+    candidates.extend(sorted(exp_dir.glob("*_spiral_*_disp.mp4"), reverse=True))
+
+    unique_videos = []
+    seen = set()
+    for video_path in candidates:
+        resolved = str(video_path.resolve())
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        unique_videos.append(video_path)
+    return unique_videos
 
 
 def match_before_after_images(exp_name):
@@ -1378,6 +1503,12 @@ def home_page():
 def config_page():
     """配置管理页面"""
     st.markdown('<h2 class="section-header">⚙️ 配置</h2>', unsafe_allow_html=True)
+
+    _sync_config_editor_widget_state()
+
+    if st.session_state.get("config_editor_notice"):
+        st.success(st.session_state.config_editor_notice)
+        del st.session_state["config_editor_notice"]
     
     tab1, tab2, tab3, tab4 = st.tabs(["🎯 预设", "📝 新建配置", "✏️ 编辑配置", "📚 参数详解"])
     
@@ -1408,6 +1539,7 @@ def config_page():
                     
                     if st.button(f"✨ 使用 {preset_name}", width='stretch'):
                         st.session_state.current_config = dict(preset_params)
+                        _sync_config_editor_widget_state()
                         st.success(f"✅ 已加载预设：{preset_name}")
                         st.info("📝 可在'新建配置'或'编辑配置'中进一步调整")
     
@@ -1453,10 +1585,11 @@ def config_page():
             with col2:
                 dataset_type = st.selectbox(
                     "数据集类型",
-                    ["llff", "blender"],
-                    index=0 if st.session_state.current_config.get('dataset_type', 'llff') == 'llff' else 1,
-                    key="dataset_type"
+                    SUPPORTED_DATASET_TYPES,
+                    key="dataset_type",
+                    help="当前 Deblur-NeRF 项目训练脚本只实现了 LLFF 数据格式。"
                 )
+                st.caption("训练脚本当前仅支持 `llff`，选择其他类型会直接退出。")
         
         with st.expander("🧠 网络架构"):
             col1, col2 = st.columns(2)
@@ -1559,7 +1692,6 @@ def config_page():
             kernel_type = st.selectbox(
                 "模糊核类型",
                 ["none", "deformablesparsekernel"],
-                index=0 if normalized_kernel_type == 'none' else 1,
                 format_func=lambda value: "原始 NeRF" if value == "none" else "Deblur-NeRF 稀疏模糊核",
                 help=PARAM_HELP['kernel_type']['help'],
                 key="kernel_type"
@@ -1614,15 +1746,31 @@ def config_page():
                     "视频生成频率", min_value=5000, max_value=50000, step=5000,
                     value=_to_int(st.session_state.current_config.get('i_video', 20000), 20000)
                 )
+
+        preserved_keys = sorted(
+            key for key in st.session_state.current_config.keys()
+            if key not in FORM_MANAGED_CONFIG_KEYS
+        )
+        if preserved_keys:
+            with st.expander("🔐 将自动保留的高级参数", expanded=False):
+                st.caption("这些参数当前表单不直接编辑，但在从已有配置加载后再次保存时会继续保留。")
+                st.code(
+                    "\n".join(
+                        f"{key} = {st.session_state.current_config[key]}"
+                        for key in preserved_keys
+                    ),
+                    language="ini",
+                )
         
         # 保存按钮
         if st.button("💾 保存配置", width='stretch'):
-            config_data = {
+            config_data = dict(st.session_state.current_config)
+            config_data.update({
                 "expname": expname,
                 "datadir": datadir,
                 "basedir": basedir,
                 "tbdir": tbdir,
-                "dataset_type": dataset_type,
+                "dataset_type": _normalize_dataset_type(dataset_type),
                 "factor": str(factor),
                 "netdepth": str(netdepth),
                 "netwidth": str(netwidth),
@@ -1647,7 +1795,7 @@ def config_page():
                 "i_weights": str(i_weights),
                 "i_testset": str(i_testset),
                 "i_video": str(i_video),
-            }
+            })
             
             # 验证配置
             errors, warnings = validate_config(config_data)
@@ -1677,7 +1825,8 @@ def config_page():
                 st.success(f"✅ 已加载：{selected_config}")
                 if st.button("📥 加载到新建配置编辑器", width='stretch'):
                     st.session_state.current_config = dict(config_data)
-                    st.success("✅ 已加载到“新建配置”页，可直接修改后另存为新文件。")
+                    st.session_state.config_editor_notice = "✅ 已加载到“新建配置”页，可直接修改后另存为新文件。"
+                    st.rerun()
                 
                 # 显示配置文件内容
                 with st.expander("📋 原始配置内容", expanded=False):
@@ -1879,24 +2028,25 @@ def training_page():
                 st.markdown("**📊 训练指标**")
                 metric_points = parse_test_metrics(selected_exp)
                 if metric_points:
-                    iterations = [x[0] for x in metric_points]
-                    psnr_values = [x[1] for x in metric_points]
-                    fig = go.Figure()
-                    fig.add_trace(go.Scatter(
-                        x=iterations, y=psnr_values,
-                        mode='lines+markers',
-                        name='PSNR',
-                        line=dict(color='#2ca02c', width=2),
-                        marker=dict(size=6)
-                    ))
-                    fig.update_layout(
-                        title="PSNR 测试曲线（来自 test_metrics.txt）",
-                        xaxis_title="迭代次数",
-                        yaxis_title="PSNR (dB)",
-                        hovermode='x unified',
-                        height=350
-                    )
-                    st.plotly_chart(fig, width='stretch')
+                    if _plotly_is_available():
+                        iterations = [x[0] for x in metric_points]
+                        psnr_values = [x[1] for x in metric_points]
+                        fig = go.Figure()
+                        fig.add_trace(go.Scatter(
+                            x=iterations, y=psnr_values,
+                            mode='lines+markers',
+                            name='PSNR',
+                            line=dict(color='#2ca02c', width=2),
+                            marker=dict(size=6)
+                        ))
+                        fig.update_layout(
+                            title="PSNR 测试曲线（来自 test_metrics.txt）",
+                            xaxis_title="迭代次数",
+                            yaxis_title="PSNR (dB)",
+                            hovermode='x unified',
+                            height=350
+                        )
+                        st.plotly_chart(fig, width='stretch')
                 else:
                     st.info("暂未找到可用的测试指标文件（`test_metrics.txt`）。")
             
@@ -1942,61 +2092,69 @@ def training_page():
                 
                 with col1:
                     st.markdown("**PSNR 对比**")
-                    fig = go.Figure()
-                    for exp in selected_exps:
-                        records = metric_map.get(exp, [])
-                        if not records:
-                            continue
-                        iterations = [record["iter"] for record in records if record.get("psnr") is not None]
-                        psnr_values = [record["psnr"] for record in records if record.get("psnr") is not None]
-                        if not iterations:
-                            continue
-                        fig.add_trace(go.Scatter(
-                            x=iterations, y=psnr_values,
-                            mode='lines+markers',
-                            name=get_experiment_display_name(exp),
-                            marker=dict(size=6)
-                        ))
-                    fig.update_layout(
-                        title="PSNR 对比",
-                        xaxis_title="迭代次数",
-                        yaxis_title="PSNR (dB)",
-                        hovermode='x unified',
-                        height=400
-                    )
-                    if has_metric_data and fig.data:
-                        st.plotly_chart(fig, width='stretch')
+                    if _plotly_is_available():
+                        fig = go.Figure()
+                        for exp in selected_exps:
+                            records = metric_map.get(exp, [])
+                            if not records:
+                                continue
+                            iterations = [record["iter"] for record in records if record.get("psnr") is not None]
+                            psnr_values = [record["psnr"] for record in records if record.get("psnr") is not None]
+                            if not iterations:
+                                continue
+                            fig.add_trace(go.Scatter(
+                                x=iterations, y=psnr_values,
+                                mode='lines+markers',
+                                name=get_experiment_display_name(exp),
+                                marker=dict(size=6)
+                            ))
+                        fig.update_layout(
+                            title="PSNR 对比",
+                            xaxis_title="迭代次数",
+                            yaxis_title="PSNR (dB)",
+                            hovermode='x unified',
+                            height=400
+                        )
+                        if has_metric_data and fig.data:
+                            st.plotly_chart(fig, width='stretch')
+                        else:
+                            st.info("未找到可用于对比的 PSNR 指标，请先生成 `test_metrics.txt`。")
                     else:
-                        st.info("未找到可用于对比的 PSNR 指标，请先生成 `test_metrics.txt`。")
+                        if go is not None:
+                            st.info("未找到可用于对比的 PSNR 指标，请先生成 `test_metrics.txt`。")
                 
                 with col2:
                     st.markdown("**MSE 对比**")
-                    fig = go.Figure()
-                    for exp in selected_exps:
-                        records = metric_map.get(exp, [])
-                        if not records:
-                            continue
-                        iterations = [record["iter"] for record in records if record.get("mse") is not None]
-                        loss_values = [record["mse"] for record in records if record.get("mse") is not None]
-                        if not iterations:
-                            continue
-                        fig.add_trace(go.Scatter(
-                            x=iterations, y=loss_values,
-                            mode='lines+markers',
-                            name=get_experiment_display_name(exp),
-                            marker=dict(size=6)
-                        ))
-                    fig.update_layout(
-                        title="MSE 对比",
-                        xaxis_title="迭代次数",
-                        yaxis_title="MSE",
-                        hovermode='x unified',
-                        height=400
-                    )
-                    if has_metric_data and fig.data:
-                        st.plotly_chart(fig, width='stretch')
+                    if _plotly_is_available():
+                        fig = go.Figure()
+                        for exp in selected_exps:
+                            records = metric_map.get(exp, [])
+                            if not records:
+                                continue
+                            iterations = [record["iter"] for record in records if record.get("mse") is not None]
+                            loss_values = [record["mse"] for record in records if record.get("mse") is not None]
+                            if not iterations:
+                                continue
+                            fig.add_trace(go.Scatter(
+                                x=iterations, y=loss_values,
+                                mode='lines+markers',
+                                name=get_experiment_display_name(exp),
+                                marker=dict(size=6)
+                            ))
+                        fig.update_layout(
+                            title="MSE 对比",
+                            xaxis_title="迭代次数",
+                            yaxis_title="MSE",
+                            hovermode='x unified',
+                            height=400
+                        )
+                        if has_metric_data and fig.data:
+                            st.plotly_chart(fig, width='stretch')
+                        else:
+                            st.info("暂无 MSE 曲线数据。")
                     else:
-                        st.info("暂无 MSE 曲线数据。")
+                        if go is not None:
+                            st.info("暂无 MSE 曲线数据。")
 
 def inference_page():
     """推理与结果页面"""
@@ -2021,12 +2179,18 @@ def inference_page():
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown("**推理设置**")
-                render_factor = st.slider("渲染分辨率", 1, 8, 4, help="值越小分辨率越高，生成越慢")
+                render_factor = st.select_slider(
+                    "渲染降采样因子",
+                    options=[0, 1, 2, 4, 8],
+                    value=4,
+                    help="0 表示全分辨率；数值越大越快，但输出分辨率越低。"
+                )
                 render_poses = st.selectbox("渲染方式", ["测试集", "螺旋路径", "EPI路径"], key="render_poses_select")
             
             with col2:
                 st.markdown("**输出设置**")
-                output_format = st.selectbox("输出格式", ["PNG", "JPEG", "MP4"], key="output_format_select")
+                expected_output = "PNG 图像序列" if render_poses == "测试集" else "MP4 视频"
+                st.text_input("预期输出", value=expected_output, disabled=True)
                 num_workers = st.slider("GPU并行数", 1, 8, 1, help="映射到 `run_nerf.py --num_gpu`")
             
             st.divider()
@@ -2063,9 +2227,6 @@ def inference_page():
             
             with col2:
                 if st.button("🎬 生成视频", width='stretch'):
-                    if output_format != "MP4":
-                        st.warning("⚠️ 当前训练脚本的视频导出固定为 MP4，已按 MP4 模式启动。")
-
                     command_args, error_message = build_inference_command(
                         exp_name=selected_exp,
                         render_mode="螺旋路径",
@@ -2096,9 +2257,10 @@ def inference_page():
             )
             
             images = list_result_images(selected_exp)
-            if not images:
-                st.info("暂无结果图像")
-            else:
+            videos = list_result_videos(selected_exp)
+            if not images and not videos:
+                st.info("暂无结果图像或视频")
+            if images:
                 st.success(f"✅ 找到 {len(images)} 张结果图像")
                 
                 # 图像网格显示
@@ -2123,6 +2285,17 @@ def inference_page():
                                     st.image(img, caption=img_path.name, width='stretch')
                                 except Exception as e:
                                     st.error(f"加载失败: {img_path.name}")
+
+            if videos:
+                st.divider()
+                st.success(f"✅ 找到 {len(videos)} 个结果视频")
+                for video_path in videos[:4]:
+                    st.markdown(f"**{video_path.name}**")
+                    st.video(str(video_path))
+                    st.caption(f"路径: `{video_path}`")
+
+                if len(videos) > 4:
+                    st.info(f"还有 {len(videos) - 4} 个视频未展示")
 
     with tab3:
         st.markdown('<h3 style="color: #2ca02c;">训练前后图像对比</h3>', unsafe_allow_html=True)
@@ -2174,7 +2347,7 @@ def inference_page():
 
             if not metric_values:
                 st.info("未找到该实验的真实评估指标，请先完成测试集评估。")
-            else:
+            elif _plotly_is_available():
                 fig = go.Figure()
                 fig.add_trace(go.Bar(
                     x=metric_iters,
@@ -2287,9 +2460,12 @@ def analysis_page():
                     "最新SSIM": f"{latest_metrics['ssim']:.4f}" if latest_metrics.get('ssim') is not None else "N/A",
                     "创建时间": stats['created'],
                 })
-            
-            df = pd.DataFrame(exp_data)
-            st.dataframe(df, width='stretch')
+
+            if pd is None:
+                st.warning(f"统计表暂不可用：`pandas` 导入失败（{PANDAS_IMPORT_ERROR}）。")
+            else:
+                df = pd.DataFrame(exp_data)
+                st.dataframe(df, width='stretch')
             
             st.markdown("#### 📊 关键指标概览")
             
