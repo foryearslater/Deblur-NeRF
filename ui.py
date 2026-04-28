@@ -170,6 +170,8 @@ if 'sidebar_page' not in st.session_state:
     st.session_state.sidebar_page = st.session_state.page
 if 'loaded_model_exp' not in st.session_state:
     st.session_state.loaded_model_exp = None
+if 'page_sync_pending' not in st.session_state:
+    st.session_state.page_sync_pending = False
 
 # ==================== 参数库和帮助文本 ====================
 
@@ -487,6 +489,7 @@ def save_config(config_data, config_name):
 def _set_page(page_name):
     """更新目标页面，侧边栏状态在下一次 rerun 前同步。"""
     st.session_state.page = page_name
+    st.session_state.page_sync_pending = True
 
 
 def _sync_config_editor_widget_state():
@@ -2489,8 +2492,9 @@ def analysis_page():
 # ==================== 主程序 ====================
 
 def main():
-    if st.session_state.get("sidebar_page") != st.session_state.get("page"):
+    if st.session_state.get("page_sync_pending"):
         st.session_state.sidebar_page = st.session_state.page
+        st.session_state.page_sync_pending = False
 
     with st.sidebar:
         st.title("🎬 Deblur-NeRF")
