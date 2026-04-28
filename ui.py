@@ -2162,10 +2162,19 @@ def training_page():
 def inference_page():
     """推理与结果页面"""
     st.markdown('<h2 class="section-header">🎨 推理与结果展示</h2>', unsafe_allow_html=True)
-    
-    tab1, tab2, tab3, tab4 = st.tabs(["🎯 运行推理", "🖼️ 结果查看", "🔍 前后对比", "📊 质量指标"])
-    
-    with tab1:
+
+    # 避免在 st.tabs 中无条件渲染所有媒体资源。
+    # Streamlit 会在每次 rerun 时执行所有 tab 内容，图像/视频较多时容易反复创建新的内存媒体 ID，
+    # 重启服务或快速切页后就更容易看到 "MediaFileHandler: Missing file <hash>" 日志。
+    inference_section = st.radio(
+        "推理功能",
+        ["🎯 运行推理", "🖼️ 结果查看", "🔍 前后对比", "📊 质量指标"],
+        horizontal=True,
+        label_visibility="collapsed",
+        key="inference_section",
+    )
+
+    if inference_section == "🎯 运行推理":
         st.markdown('<h3 style="color: #2ca02c;">运行推理</h3>', unsafe_allow_html=True)
         
         exps = get_experiments()
@@ -2244,8 +2253,8 @@ def inference_page():
                         st.success("✅ 视频生成任务已启动")
                         st.info(f"日志: `{log_path}` | PID: {pid}")
                         st.code(_format_shell_command(command_args), language="bash")
-    
-    with tab2:
+
+    elif inference_section == "🖼️ 结果查看":
         st.markdown('<h3 style="color: #2ca02c;">查看渲染结果</h3>', unsafe_allow_html=True)
         
         exps = get_experiments()
@@ -2300,7 +2309,7 @@ def inference_page():
                 if len(videos) > 4:
                     st.info(f"还有 {len(videos) - 4} 个视频未展示")
 
-    with tab3:
+    elif inference_section == "🔍 前后对比":
         st.markdown('<h3 style="color: #2ca02c;">训练前后图像对比</h3>', unsafe_allow_html=True)
         st.caption("自动匹配实验输入图像与渲染输出图，支持融合滑块与差分查看。")
         exps = get_experiments()
@@ -2315,7 +2324,7 @@ def inference_page():
             )
             render_before_after_compare(selected_exp, widget_key_prefix=f"before_after_{get_experiment_widget_key(selected_exp)}")
 
-    with tab4:
+    else:
         st.markdown('<h3 style="color: #2ca02c;">质量指标分析</h3>', unsafe_allow_html=True)
         
         st.markdown("""
