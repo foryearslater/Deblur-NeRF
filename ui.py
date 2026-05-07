@@ -36,6 +36,7 @@ except Exception as exc:
 # ==================== 页面配置 ====================
 PROJECT_TITLE = "基于神经辐射场和运动感知的图像去模糊技术研究"
 PROJECT_FOOTER = f"{PROJECT_TITLE} UI"
+VISUAL_SERIES_COLORS = ["#0f617d", "#d88b2d", "#1f7a5c", "#be4d3f", "#183a60"]
 
 st.set_page_config(
     page_title=PROJECT_TITLE,
@@ -540,6 +541,426 @@ div[data-testid="stVideo"] video {
     }
 
     .quick-nav-card__desc {
+        min-height: auto;
+    }
+}
+
+/* ==================== 视觉刷新层 ==================== */
+body {
+    overflow-x: hidden;
+}
+
+.stApp::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+        linear-gradient(90deg, rgba(16, 38, 63, 0.035) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(16, 38, 63, 0.035) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: linear-gradient(180deg, rgba(0,0,0,0.88), transparent 72%);
+}
+
+.stApp::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+        radial-gradient(circle at 18% 24%, rgba(255, 255, 255, 0.5), transparent 18%),
+        radial-gradient(circle at 84% 72%, rgba(15, 97, 125, 0.08), transparent 24%);
+}
+
+[data-testid="stHeader"] {
+    background: rgba(251, 249, 244, 0.72);
+    backdrop-filter: blur(18px);
+}
+
+.main .block-container {
+    position: relative;
+    z-index: 1;
+}
+
+.hero-shell {
+    isolation: isolate;
+    border: 1px solid rgba(255,255,255,0.18);
+    outline: 1px solid rgba(15, 97, 125, 0.08);
+}
+
+.hero-shell::before {
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.08),
+        0 0 70px rgba(255,255,255,0.22);
+}
+
+.hero-shell::after {
+    background:
+        radial-gradient(circle, rgba(255,255,255,0.14) 0 18%, transparent 19%),
+        radial-gradient(circle, rgba(255,255,255,0.08), transparent 58%);
+}
+
+.hero-title {
+    max-width: 1080px;
+    text-shadow: 0 14px 36px rgba(0,0,0,0.18);
+}
+
+.hero-subtitle {
+    text-wrap: pretty;
+}
+
+.hero-tag {
+    backdrop-filter: blur(12px);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
+}
+
+.subsection-header {
+    position: relative;
+    border-left: 0;
+    padding-left: 0;
+}
+
+.subsection-header::before {
+    content: "";
+    display: inline-block;
+    width: 0.72rem;
+    height: 0.72rem;
+    margin-right: 0.55rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--accent), var(--brand));
+    box-shadow: 0 0 0 6px rgba(216, 139, 45, 0.12);
+    vertical-align: 0.08rem;
+}
+
+.quick-nav-card {
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+    min-height: 188px;
+    padding: 1.1rem 1.05rem;
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at 0% 0%, rgba(216,139,45,0.16), transparent 35%),
+        linear-gradient(180deg, rgba(255,255,255,0.94), rgba(247,250,251,0.86));
+    border: 1px solid rgba(16, 38, 63, 0.1);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.quick-nav-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(15, 97, 125, 0.22);
+    box-shadow: var(--shadow-md);
+}
+
+.quick-nav-card::after {
+    content: "";
+    position: absolute;
+    top: -2.4rem;
+    right: -2.4rem;
+    width: 5.4rem;
+    height: 5.4rem;
+    border-radius: 999px;
+    background: rgba(15, 97, 125, 0.08);
+}
+
+.quick-nav-card__icon {
+    position: relative;
+    z-index: 1;
+    display: inline-grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 17px;
+    background: linear-gradient(135deg, rgba(15, 97, 125, 0.12), rgba(216, 139, 45, 0.18));
+}
+
+.quick-nav-card__title,
+.quick-nav-card__desc,
+.quick-nav-card__meta {
+    position: relative;
+    z-index: 1;
+}
+
+.quick-nav-card__meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.quick-nav-card__meta::before {
+    content: "";
+    width: 1.15rem;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: 0.55;
+}
+
+.soft-panel {
+    position: relative;
+    overflow: hidden;
+}
+
+.soft-panel::after {
+    content: "";
+    position: absolute;
+    inset: auto 1rem 1rem auto;
+    width: 5rem;
+    height: 5rem;
+    border-radius: 999px;
+    background: rgba(15, 97, 125, 0.06);
+}
+
+.workflow-strip {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.85rem;
+    margin: 0.65rem 0 1.25rem;
+}
+
+.workflow-step {
+    position: relative;
+    overflow: hidden;
+    min-height: 132px;
+    padding: 1rem;
+    border-radius: 22px;
+    background: linear-gradient(160deg, rgba(255,255,255,0.9), rgba(246,250,252,0.82));
+    border: 1px solid rgba(16,38,63,0.1);
+    box-shadow: var(--shadow-sm);
+}
+
+.workflow-step::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--brand), var(--accent));
+}
+
+.workflow-step__index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: rgba(16,38,63,0.08);
+    color: var(--brand-deep);
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.workflow-step__title {
+    margin-top: 0.72rem;
+    font-weight: 850;
+    color: var(--ink-900);
+}
+
+.workflow-step__desc {
+    margin-top: 0.38rem;
+    color: var(--ink-700);
+    font-size: 0.88rem;
+    line-height: 1.65;
+}
+
+.insight-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.95rem;
+    margin: 0.65rem 0 1.2rem;
+}
+
+.insight-card {
+    position: relative;
+    overflow: hidden;
+    padding: 1.15rem;
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(216,139,45,0.14), transparent 34%),
+        linear-gradient(180deg, rgba(255,255,255,0.94), rgba(247,250,251,0.86));
+    border: 1px solid rgba(16,38,63,0.1);
+    box-shadow: var(--shadow-sm);
+}
+
+.insight-card__kicker {
+    color: var(--brand);
+    font-size: 0.75rem;
+    font-weight: 850;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.insight-card__title {
+    margin-top: 0.52rem;
+    color: var(--ink-900);
+    font-size: 1.04rem;
+    font-weight: 850;
+}
+
+.insight-card__body {
+    margin-top: 0.42rem;
+    color: var(--ink-700);
+    font-size: 0.92rem;
+    line-height: 1.72;
+}
+
+.empty-state {
+    position: relative;
+    overflow: hidden;
+    padding: 1.25rem 1.35rem;
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(15,97,125,0.12), transparent 30%),
+        linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,251,0.9));
+    border: 1px dashed rgba(15, 97, 125, 0.32);
+    box-shadow: var(--shadow-sm);
+}
+
+.empty-state__title {
+    color: var(--ink-900);
+    font-weight: 850;
+    font-size: 1.06rem;
+}
+
+.empty-state__body {
+    margin-top: 0.35rem;
+    color: var(--ink-700);
+    line-height: 1.72;
+}
+
+.empty-state__hint {
+    margin-top: 0.7rem;
+    display: inline-flex;
+    border-radius: 999px;
+    padding: 0.38rem 0.72rem;
+    background: rgba(15, 97, 125, 0.08);
+    color: var(--brand-deep);
+    font-size: 0.84rem;
+    font-weight: 750;
+}
+
+.model-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin: 0.75rem 0 0.25rem;
+}
+
+.model-fact {
+    padding: 0.8rem 0.9rem;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.72);
+    border: 1px solid rgba(16,38,63,0.08);
+}
+
+.model-fact__label {
+    color: var(--ink-500);
+    font-size: 0.78rem;
+    font-weight: 750;
+}
+
+.model-fact__value {
+    margin-top: 0.25rem;
+    color: var(--ink-900);
+    font-size: 0.96rem;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+}
+
+.image-card-title {
+    margin: 0.15rem 0 0.45rem;
+    color: var(--ink-900);
+    font-weight: 850;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+    border-radius: 999px;
+    padding: 0.38rem 0.72rem;
+    background: rgba(31, 122, 92, 0.1);
+    color: var(--success-color);
+    font-size: 0.84rem;
+    font-weight: 800;
+}
+
+.status-pill.warning {
+    background: rgba(185, 119, 32, 0.12);
+    color: var(--warning-color);
+}
+
+.status-pill::before {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: currentColor;
+    box-shadow: 0 0 0 5px color-mix(in srgb, currentColor 16%, transparent);
+}
+
+div[data-testid="stProgress"] > div > div > div {
+    background: linear-gradient(90deg, var(--brand), var(--accent));
+}
+
+div[data-testid="stDataFrame"],
+div[data-testid="stTable"] {
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+div[data-testid="stRadio"] label {
+    color: var(--ink-700);
+}
+
+div[role="radiogroup"] {
+    gap: 0.45rem;
+}
+
+div[role="radiogroup"] label {
+    padding: 0.45rem 0.72rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.58);
+    border: 1px solid rgba(16,38,63,0.08);
+}
+
+section[data-testid="stSidebar"] div[role="radiogroup"] label {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.1);
+}
+
+section[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+    background: rgba(255,255,255,0.13);
+}
+
+code {
+    border-radius: 8px;
+}
+
+pre {
+    border-radius: 18px !important;
+    border: 1px solid rgba(16,38,63,0.08) !important;
+}
+
+@media (max-width: 1100px) {
+    .workflow-strip,
+    .insight-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .workflow-strip,
+    .insight-grid,
+    .model-facts {
+        grid-template-columns: 1fr;
+    }
+
+    .quick-nav-card {
         min-height: auto;
     }
 }
@@ -1727,7 +2148,11 @@ def model_loader_page():
 
     exps = get_experiments()
     if not exps:
-        st.info("暂无可加载的训练模型，请先完成训练。")
+        render_empty_state(
+            "暂无可加载的训练模型",
+            "完成至少一次训练后，模型实验会出现在这里，用于按场景视角查看恢复效果。",
+            "先进入训练页启动一个实验",
+        )
         return
 
     selected_exp = st.selectbox(
@@ -1772,10 +2197,12 @@ def model_loader_page():
 
     with st.container(border=True):
         st.markdown("### 模型信息")
-        st.write(f"实验目录: `{exp_dir}`")
-        st.write(f"配置文件: `{config_path}`" if config_path else "配置文件: 未找到")
-        st.write(f"数据目录: `{args_data.get('datadir', 'N/A')}`")
-        st.write(f"最新迭代: `{status['latest_iter']}` / 目标 `{status['target_iters'] or '未知'}`")
+        render_model_fact_grid([
+            ("实验目录", exp_dir),
+            ("配置文件", config_path if config_path else "未找到"),
+            ("数据目录", args_data.get('datadir', 'N/A')),
+            ("迭代进度", f"{status['latest_iter']} / {status['target_iters'] or '未知'}"),
+        ])
 
         if st.button("📦 加载这个模型", width='stretch', key=f"load_model_{exp_widget_key}"):
             st.session_state.loaded_model_exp = selected_exp
@@ -1789,11 +2216,23 @@ def model_loader_page():
     pair_records, before_images, after_images = build_image_pair_records(active_model)
     if not pair_records:
         if not before_images:
-            st.warning("未找到该模型对应的数据集原图，无法建立前后图关系。")
+            render_empty_state(
+                "未找到数据集原图",
+                "该实验的 args.txt 中 datadir/factor 可能无法定位到 images 或 images_factor 目录。",
+                "检查实验配置的数据路径",
+            )
         elif not after_images:
-            st.warning("未找到该模型的渲染结果图，请先执行测试集渲染。")
+            render_empty_state(
+                "未找到渲染结果图",
+                "模型已可选择，但尚未检测到 testset 或 renderonly 输出图像。",
+                "先在推理页执行测试集渲染",
+            )
         else:
-            st.warning("找到了原图和结果图，但暂时无法建立对应关系。")
+            render_empty_state(
+                "无法建立图像对应关系",
+                "找到了原图和结果图，但文件编号或数量暂时无法自动配对。",
+                "可检查输出文件名是否按视角编号排列",
+            )
         return
 
     st.divider()
@@ -1811,10 +2250,12 @@ def model_loader_page():
 
     with st.container(border=True):
         st.markdown("### 当前视角信息")
-        st.write(f"场景模型: `{get_experiment_display_name(active_model)}`")
-        st.write(f"原图文件: `{selected_record['before_name']}`")
-        st.write(f"结果文件: `{selected_record['after_name']}`")
-        st.write(f"视角编号: `{selected_record['index']}` / `{len(pair_records) - 1}`")
+        render_model_fact_grid([
+            ("场景模型", get_experiment_display_name(active_model)),
+            ("原图文件", selected_record['before_name']),
+            ("结果文件", selected_record['after_name']),
+            ("视角编号", f"{selected_record['index']} / {len(pair_records) - 1}"),
+        ])
 
     st.divider()
     st.markdown("### 训练结果展示")
@@ -1831,15 +2272,15 @@ def model_loader_page():
 
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.markdown(f"**输入原图**: `{selected_record['before_name']}`")
+            st.markdown(f'<div class="image-card-title">输入原图: {html.escape(selected_record["before_name"])}</div>', unsafe_allow_html=True)
             st.image(before_img, width='stretch')
         with col2:
-            st.markdown(f"**训练后结果图**: `{selected_record['after_name']}`")
+            st.markdown(f'<div class="image-card-title">训练后结果图: {html.escape(selected_record["after_name"])}</div>', unsafe_allow_html=True)
             st.image(after_img, width='stretch')
         with col3:
-            st.markdown("**融合预览**")
+            st.markdown('<div class="image-card-title">融合预览</div>', unsafe_allow_html=True)
             st.image(blend_img, width='stretch')
-            st.markdown("**差分图**")
+            st.markdown('<div class="image-card-title">差分图</div>', unsafe_allow_html=True)
             st.image(diff_img, width='stretch')
 
         st.caption(
@@ -1907,6 +2348,117 @@ def render_soft_panel(content_html):
     """渲染轻量说明面板"""
     st.markdown(f'<div class="soft-panel">{content_html}</div>', unsafe_allow_html=True)
 
+
+def render_empty_state(title, body, hint=None):
+    """渲染统一空状态提示"""
+    hint_html = f'<div class="empty-state__hint">{html.escape(hint)}</div>' if hint else ""
+    st.markdown(
+        f"""
+        <div class="empty-state">
+            <div class="empty-state__title">{html.escape(title)}</div>
+            <div class="empty-state__body">{html.escape(body)}</div>
+            {hint_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_workflow_strip(steps):
+    """渲染首页研究流程条"""
+    cards_html = []
+    for idx, step in enumerate(steps, start=1):
+        cards_html.append(
+            f"""
+            <div class="workflow-step">
+                <div class="workflow-step__index">{idx:02d}</div>
+                <div class="workflow-step__title">{html.escape(step["title"])}</div>
+                <div class="workflow-step__desc">{html.escape(step["desc"])}</div>
+            </div>
+            """
+        )
+    st.markdown(
+        f'<div class="workflow-strip">{"".join(cards_html)}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_insight_cards(cards):
+    """渲染说明型信息卡片"""
+    cards_html = []
+    for card in cards:
+        cards_html.append(
+            f"""
+            <div class="insight-card">
+                <div class="insight-card__kicker">{html.escape(card["kicker"])}</div>
+                <div class="insight-card__title">{html.escape(card["title"])}</div>
+                <div class="insight-card__body">{html.escape(card["body"])}</div>
+            </div>
+            """
+        )
+    st.markdown(
+        f'<div class="insight-grid">{"".join(cards_html)}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_model_fact_grid(facts):
+    """渲染模型/实验元信息网格"""
+    fact_html = []
+    for label, value in facts:
+        fact_html.append(
+            f"""
+            <div class="model-fact">
+                <div class="model-fact__label">{html.escape(str(label))}</div>
+                <div class="model-fact__value">{html.escape(str(value))}</div>
+            </div>
+            """
+        )
+    st.markdown(
+        f'<div class="model-facts">{"".join(fact_html)}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def style_plotly_figure(fig, *, height=400, show_legend=True):
+    """统一 Plotly 图表视觉风格"""
+    fig.update_layout(
+        template="plotly_white",
+        height=height,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(255,255,255,0.54)",
+        font=dict(
+            family="Avenir Next, Segoe UI, PingFang SC, Microsoft YaHei, sans-serif",
+            color="#10263f",
+        ),
+        margin=dict(l=28, r=22, t=58, b=34),
+        hoverlabel=dict(
+            bgcolor="#10263f",
+            bordercolor="rgba(255,255,255,0.16)",
+            font=dict(color="#ffffff"),
+        ),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+        ) if show_legend else dict(visible=False),
+    )
+    fig.update_xaxes(
+        showgrid=True,
+        gridcolor="rgba(16,38,63,0.08)",
+        zerolinecolor="rgba(16,38,63,0.08)",
+        linecolor="rgba(16,38,63,0.16)",
+    )
+    fig.update_yaxes(
+        showgrid=True,
+        gridcolor="rgba(16,38,63,0.08)",
+        zerolinecolor="rgba(16,38,63,0.08)",
+        linecolor="rgba(16,38,63,0.16)",
+    )
+    return fig
+
 # ==================== UI 页面组件 ====================
 
 def home_page():
@@ -1917,6 +2469,15 @@ def home_page():
         eyebrow="NeRF Deblurring Research Platform",
         tags=["配置到训练", "结果可视化", "实验对比分析"],
     )
+
+    render_subsection_title("研究流程")
+    render_workflow_strip([
+        {"title": "准备数据", "desc": "整理 LLFF 场景目录、图像序列与相机位姿。"},
+        {"title": "建立配置", "desc": "选择预设或编辑关键训练、采样与模糊核参数。"},
+        {"title": "启动训练", "desc": "后台执行 Deblur-NeRF，记录日志、检查点和评估结果。"},
+        {"title": "查看模型", "desc": "按场景视角浏览原图、恢复图、融合图和差分细节。"},
+        {"title": "分析结论", "desc": "用 PSNR、SSIM、LPIPS 与可视对比辅助论文实验总结。"},
+    ])
     
     # 导航
     render_subsection_title("🚀 快速开始")
@@ -2035,23 +2596,34 @@ def home_page():
                     with col_size:
                         st.caption(f"{stats['size_mb']:.1f}MB")
             else:
-                st.info("暂无实验数据")
+                render_empty_state(
+                    "暂无实验数据",
+                    "训练完成后，这里会自动显示最近实验、产物大小与模型输出概览。",
+                    "先去配置页建立一个实验配置",
+                )
     
     st.divider()
     
     # 提示
     render_subsection_title("💡 使用建议")
-    render_soft_panel("<p>推荐流程：先建立配置基线，再启动训练，随后在模型与推理模块核查可视结果，最后进入分析页汇总定量指标。</p>")
-    tips = [
-        "📝 **首次使用**: 先在'配置管理'创建或加载配置",
-        "🚀 **开始训练**: 配置完成后点击'训练系统'启动训练",
-        "🧠 **加载模型**: 在'模型加载'页选择训练好的实验模型，并查看场景视角对应结果",
-        "🎨 **查看结果**: 训练完成后在'推理结果'查看渲染输出",
-        "📊 **对比分析**: 使用'分析对比'功能比较不同配置的效果",
-        "⚡ **性能优化**: 如GPU显存不足，在配置中减小N_rand和chunk",
-    ]
-    for tip in tips:
-        st.write(tip)
+    render_soft_panel("<p>推荐流程：先建立配置基线，再启动训练，随后在模型与推理模块核查可视结果，最后进入分析页汇总定量指标。若 GPU 显存吃紧，优先降低 N_rand 与 chunk。</p>")
+    render_insight_cards([
+        {
+            "kicker": "First Run",
+            "title": "先跑测试配置",
+            "body": "第一次验证数据路径时，优先使用低迭代、低分辨率配置，先确认管线能闭环。",
+        },
+        {
+            "kicker": "Quality",
+            "title": "再升质量参数",
+            "body": "确认训练正常后再提高 factor、N_samples、netwidth 等参数，避免直接把显存拉爆。",
+        },
+        {
+            "kicker": "Paper Ready",
+            "title": "保留对比证据",
+            "body": "建议每组实验都保存配置、日志、指标和关键视角图，后续写论文会轻松很多。",
+        },
+    ])
 
 def config_page():
     """配置管理页面"""
@@ -2373,7 +2945,11 @@ def config_page():
         
         configs = get_config_files()
         if not configs:
-            st.info("暂无配置文件")
+            render_empty_state(
+                "暂无配置文件",
+                "configs 目录下还没有可编辑的配置文件。可以先从预设生成一个新配置。",
+                "去预设页选择一个模板",
+            )
         else:
             selected_config = st.selectbox("选择配置文件", configs, key="edit_config_select")
             config_data = load_config(selected_config)
@@ -2446,7 +3022,11 @@ def training_page():
         
         configs = get_config_files()
         if not configs:
-            st.warning("⚠️ 暂无可用的配置文件，请先在'配置管理'创建配置")
+            render_empty_state(
+                "暂无可用配置文件",
+                "训练启动需要一个 configs 下的 .txt 配置文件。你可以先从预设模板创建配置。",
+                "先进入配置页创建配置",
+            )
         else:
             col1, col2 = st.columns([1, 1])
             with col1:
@@ -2558,7 +3138,11 @@ def training_page():
         exps = get_experiments()
         
         if not exps:
-            st.info("暂无训练实验，请在'启动训练'标签页创建")
+            render_empty_state(
+                "暂无训练实验",
+                "还没有检测到实验目录。启动训练后，这里会展示进度、检查点、日志和指标曲线。",
+                "先在启动训练页选择配置",
+            )
         else:
             selected_exp = st.selectbox(
                 "选择实验",
@@ -2597,19 +3181,23 @@ def training_page():
                             x=iterations, y=psnr_values,
                             mode='lines+markers',
                             name='PSNR',
-                            line=dict(color='#2ca02c', width=2),
-                            marker=dict(size=6)
+                            line=dict(color=VISUAL_SERIES_COLORS[2], width=3, shape="spline"),
+                            marker=dict(size=7, color=VISUAL_SERIES_COLORS[2], line=dict(width=1, color="#ffffff"))
                         ))
                         fig.update_layout(
                             title="PSNR 测试曲线（来自 test_metrics.txt）",
                             xaxis_title="迭代次数",
                             yaxis_title="PSNR (dB)",
                             hovermode='x unified',
-                            height=350
                         )
+                        style_plotly_figure(fig, height=350, show_legend=False)
                         st.plotly_chart(fig, width='stretch')
                 else:
-                    st.info("暂未找到可用的测试指标文件（`test_metrics.txt`）。")
+                    render_empty_state(
+                        "暂无测试指标",
+                        "暂未找到 test_metrics.txt。训练产生测试集评估后，这里会显示 PSNR 曲线。",
+                        "等待 i_testset 周期产出",
+                    )
             
             with col2:
                 st.markdown("**🎯 训练状态**")
@@ -2636,7 +3224,11 @@ def training_page():
         exps = get_experiments()
         
         if not exps:
-            st.info("暂无实验数据")
+            render_empty_state(
+                "暂无实验数据",
+                "训练实验生成后，曲线分析会自动读取 test_metrics.txt 并支持多实验对比。",
+                "先完成至少一个训练实验",
+            )
         else:
             selected_exps = st.multiselect(
                 "选择要对比的实验",
@@ -2655,7 +3247,7 @@ def training_page():
                     st.markdown("**PSNR 对比**")
                     if _plotly_is_available():
                         fig = go.Figure()
-                        for exp in selected_exps:
+                        for idx, exp in enumerate(selected_exps):
                             records = metric_map.get(exp, [])
                             if not records:
                                 continue
@@ -2667,19 +3259,28 @@ def training_page():
                                 x=iterations, y=psnr_values,
                                 mode='lines+markers',
                                 name=get_experiment_display_name(exp),
-                                marker=dict(size=6)
+                                line=dict(color=VISUAL_SERIES_COLORS[idx % len(VISUAL_SERIES_COLORS)], width=3),
+                                marker=dict(
+                                    size=7,
+                                    color=VISUAL_SERIES_COLORS[idx % len(VISUAL_SERIES_COLORS)],
+                                    line=dict(width=1, color="#ffffff"),
+                                )
                             ))
                         fig.update_layout(
                             title="PSNR 对比",
                             xaxis_title="迭代次数",
                             yaxis_title="PSNR (dB)",
                             hovermode='x unified',
-                            height=400
                         )
+                        style_plotly_figure(fig, height=400)
                         if has_metric_data and fig.data:
                             st.plotly_chart(fig, width='stretch')
                         else:
-                            st.info("未找到可用于对比的 PSNR 指标，请先生成 `test_metrics.txt`。")
+                            render_empty_state(
+                                "暂无 PSNR 对比数据",
+                                "未找到可用于对比的 PSNR 指标，请先生成 test_metrics.txt。",
+                                "训练到测试集评估周期后再查看",
+                            )
                     else:
                         if go is not None:
                             st.info("未找到可用于对比的 PSNR 指标，请先生成 `test_metrics.txt`。")
@@ -2688,7 +3289,7 @@ def training_page():
                     st.markdown("**MSE 对比**")
                     if _plotly_is_available():
                         fig = go.Figure()
-                        for exp in selected_exps:
+                        for idx, exp in enumerate(selected_exps):
                             records = metric_map.get(exp, [])
                             if not records:
                                 continue
@@ -2700,19 +3301,28 @@ def training_page():
                                 x=iterations, y=loss_values,
                                 mode='lines+markers',
                                 name=get_experiment_display_name(exp),
-                                marker=dict(size=6)
+                                line=dict(color=VISUAL_SERIES_COLORS[idx % len(VISUAL_SERIES_COLORS)], width=3),
+                                marker=dict(
+                                    size=7,
+                                    color=VISUAL_SERIES_COLORS[idx % len(VISUAL_SERIES_COLORS)],
+                                    line=dict(width=1, color="#ffffff"),
+                                )
                             ))
                         fig.update_layout(
                             title="MSE 对比",
                             xaxis_title="迭代次数",
                             yaxis_title="MSE",
                             hovermode='x unified',
-                            height=400
                         )
+                        style_plotly_figure(fig, height=400)
                         if has_metric_data and fig.data:
                             st.plotly_chart(fig, width='stretch')
                         else:
-                            st.info("暂无 MSE 曲线数据。")
+                            render_empty_state(
+                                "暂无 MSE 曲线数据",
+                                "当前选择的实验尚未记录可绘制的 MSE 数据。",
+                                "完成测试集评估后再查看",
+                            )
                     else:
                         if go is not None:
                             st.info("暂无 MSE 曲线数据。")
@@ -2741,7 +3351,11 @@ def inference_page():
         
         exps = get_experiments()
         if not exps:
-            st.warning("⚠️ 暂无已完成的训练实验")
+            render_empty_state(
+                "暂无可推理实验",
+                "还没有检测到已训练实验。推理需要实验目录中的 config.txt 或 args.txt 才能自动构建命令。",
+                "先完成训练或检查 logs 目录",
+            )
         else:
             selected_exp = st.selectbox(
                 "选择实验",
@@ -2821,7 +3435,11 @@ def inference_page():
         
         exps = get_experiments()
         if not exps:
-            st.info("暂无实验")
+            render_empty_state(
+                "暂无实验",
+                "训练或推理产物会在这里以图像网格和视频列表展示。",
+                "先启动一次训练",
+            )
         else:
             selected_exp = st.selectbox(
                 "选择实验",
@@ -2833,9 +3451,13 @@ def inference_page():
             images = list_result_images(selected_exp)
             videos = list_result_videos(selected_exp)
             if not images and not videos:
-                st.info("暂无结果图像或视频")
+                render_empty_state(
+                    "暂无结果图像或视频",
+                    "当前实验还没有检测到 testset、renderonly 或路径视频输出。",
+                    "运行测试集渲染或生成视频",
+                )
             if images:
-                st.success(f"✅ 找到 {len(images)} 张结果图像")
+                st.markdown(f'<span class="status-pill">找到 {len(images)} 张结果图像</span>', unsafe_allow_html=True)
                 
                 # 图像网格显示
                 cols = st.columns(3)
@@ -2843,7 +3465,8 @@ def inference_page():
                     with cols[idx % 3]:
                         try:
                             img = Image.open(img_path)
-                            st.image(img, caption=img_path.name, width='stretch')
+                            st.markdown(f'<div class="image-card-title">{html.escape(img_path.name)}</div>', unsafe_allow_html=True)
+                            st.image(img, width='stretch')
                         except Exception as e:
                             st.error(f"加载失败: {img_path.name}")
                 
@@ -2856,15 +3479,16 @@ def inference_page():
                             with cols[(idx+9) % 3]:
                                 try:
                                     img = Image.open(img_path)
-                                    st.image(img, caption=img_path.name, width='stretch')
+                                    st.markdown(f'<div class="image-card-title">{html.escape(img_path.name)}</div>', unsafe_allow_html=True)
+                                    st.image(img, width='stretch')
                                 except Exception as e:
                                     st.error(f"加载失败: {img_path.name}")
 
             if videos:
                 st.divider()
-                st.success(f"✅ 找到 {len(videos)} 个结果视频")
+                st.markdown(f'<span class="status-pill">找到 {len(videos)} 个结果视频</span>', unsafe_allow_html=True)
                 for video_path in videos[:4]:
-                    st.markdown(f"**{video_path.name}**")
+                    st.markdown(f'<div class="image-card-title">{html.escape(video_path.name)}</div>', unsafe_allow_html=True)
                     st.video(str(video_path))
                     st.caption(f"路径: `{video_path}`")
 
@@ -2876,7 +3500,11 @@ def inference_page():
         st.caption("自动匹配实验输入图像与渲染输出图，支持融合滑块与差分查看。")
         exps = get_experiments()
         if not exps:
-            st.info("暂无实验")
+            render_empty_state(
+                "暂无实验",
+                "前后对比需要实验目录、输入图像和渲染输出共同存在。",
+                "先训练并生成 testset 输出",
+            )
         else:
             selected_exp = st.selectbox(
                 "选择实验",
@@ -2901,7 +3529,11 @@ def inference_page():
         exps = get_experiments()
         
         if len(exps) < 1:
-            st.info("需要至少1个实验来分析")
+            render_empty_state(
+                "需要至少 1 个实验",
+                "质量指标分析会读取 test_metrics.txt 中的 PSNR、SSIM 与 LPIPS。",
+                "先完成测试集评估",
+            )
         else:
             col1, col2 = st.columns([2, 1])
             with col1:
@@ -2920,13 +3552,21 @@ def inference_page():
             metric_iters = [record["iter"] for record in metric_records if record.get(metric_key) is not None]
 
             if not metric_values:
-                st.info("未找到该实验的真实评估指标，请先完成测试集评估。")
+                render_empty_state(
+                    "未找到真实评估指标",
+                    "当前实验尚未产生可读取的 PSNR、SSIM 或 LPIPS 记录。",
+                    "完成测试集评估后再查看",
+                )
             elif _plotly_is_available():
                 fig = go.Figure()
                 fig.add_trace(go.Bar(
                     x=metric_iters,
                     y=metric_values,
-                    marker=dict(color=metric_values, colorscale='Viridis'),
+                    marker=dict(
+                        color=metric_values,
+                        colorscale=[[0, "#183a60"], [0.52, "#0f617d"], [1, "#d88b2d"]],
+                        line=dict(color="rgba(255,255,255,0.7)", width=1),
+                    ),
                     text=[f"{v:.4f}" for v in metric_values],
                     textposition='auto',
                     name=metric_type
@@ -2935,8 +3575,8 @@ def inference_page():
                     title=f"{metric_type} 历次评估结果",
                     xaxis_title="迭代次数",
                     yaxis_title=metric_type,
-                    height=400
                 )
+                style_plotly_figure(fig, height=400, show_legend=False)
                 st.plotly_chart(fig, width='stretch')
 
                 col1, col2, col3, col4 = st.columns(4)
@@ -2964,7 +3604,11 @@ def analysis_page():
         
         exps = get_experiments()
         if len(exps) < 2:
-            st.info("需要至少2个实验才能进行对比")
+            render_empty_state(
+                "需要至少 2 个实验",
+                "并行对比会把两组实验的同索引结果图与最新指标放在同一视野中。",
+                "训练第二组实验后再回来",
+            )
         else:
             col1, col2 = st.columns(2)
             with col1:
@@ -2983,7 +3627,7 @@ def analysis_page():
                     
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.markdown(f"### {get_experiment_display_name(exp1)}")
+                        st.markdown(f'<div class="image-card-title">{html.escape(get_experiment_display_name(exp1))}</div>', unsafe_allow_html=True)
                         try:
                             img1 = Image.open(images1[img_idx])
                             st.image(img1, width='stretch')
@@ -2991,7 +3635,7 @@ def analysis_page():
                             st.error("图像加载失败")
                     
                     with col2:
-                        st.markdown(f"### {get_experiment_display_name(exp2)}")
+                        st.markdown(f'<div class="image-card-title">{html.escape(get_experiment_display_name(exp2))}</div>', unsafe_allow_html=True)
                         try:
                             img2 = Image.open(images2[img_idx])
                             st.image(img2, width='stretch')
@@ -3021,7 +3665,11 @@ def analysis_page():
         exps = get_experiments()
         
         if not exps:
-            st.info("暂无实验数据")
+            render_empty_state(
+                "暂无实验数据",
+                "性能分析会自动汇总实验大小、检查点、输出图像和最新评估指标。",
+                "先完成一次训练",
+            )
         else:
             st.markdown("#### 📋 实验统计表")
             
