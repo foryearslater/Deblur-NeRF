@@ -13,6 +13,7 @@ import time
 import sys
 import re
 import shlex
+import html
 from datetime import datetime
 from PIL import Image
 import psutil
@@ -33,8 +34,11 @@ except Exception as exc:
     PLOTLY_IMPORT_ERROR = exc
 
 # ==================== 页面配置 ====================
+PROJECT_TITLE = "基于神经辐射场和运动感知的图像去模糊技术研究"
+PROJECT_FOOTER = f"{PROJECT_TITLE} UI"
+
 st.set_page_config(
-    page_title="Deblur-NeRF",
+    page_title=PROJECT_TITLE,
     page_icon="🎬",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -44,89 +48,300 @@ st.set_page_config(
 st.markdown("""
 <style>
 :root {
-    --primary-color: #1f77b4;
-    --secondary-color: #ff7f0e;
-    --success-color: #2ca02c;
-    --danger-color: #d62728;
+    --bg-1: #f5efe4;
+    --bg-2: #f6fafc;
+    --panel: rgba(255, 255, 255, 0.82);
+    --panel-strong: rgba(255, 255, 255, 0.95);
+    --panel-border: rgba(20, 50, 77, 0.12);
+    --panel-border-strong: rgba(20, 50, 77, 0.18);
+    --ink-900: #10263f;
+    --ink-700: #35536d;
+    --ink-500: #6b7f92;
+    --brand: #0f617d;
+    --brand-deep: #183a60;
+    --accent: #d88b2d;
+    --accent-soft: #f2e0c3;
+    --success-color: #1f7a5c;
+    --warning-color: #b97720;
+    --danger-color: #be4d3f;
+    --shadow-lg: 0 22px 48px rgba(17, 35, 56, 0.12);
+    --shadow-md: 0 14px 32px rgba(17, 35, 56, 0.08);
+    --shadow-sm: 0 8px 20px rgba(17, 35, 56, 0.05);
+    --radius-xl: 28px;
+    --radius-lg: 20px;
+    --radius-md: 16px;
+    --radius-sm: 12px;
+}
+
+html, body, [class*="css"] {
+    font-family: "Avenir Next", "SF Pro Display", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    color: var(--ink-900);
+}
+
+body {
+    color: var(--ink-900);
+}
+
+.stApp {
+    color: var(--ink-900);
+    background:
+        radial-gradient(circle at 0% 0%, rgba(216, 139, 45, 0.22), transparent 30%),
+        radial-gradient(circle at 100% 12%, rgba(15, 97, 125, 0.18), transparent 28%),
+        linear-gradient(180deg, var(--bg-1) 0%, #fbfaf5 38%, var(--bg-2) 100%);
+}
+
+.main .block-container {
+    max-width: 1380px;
+    padding-top: 2.2rem;
+    padding-bottom: 2rem;
+}
+
+section[data-testid="stSidebar"] {
+    background:
+        radial-gradient(circle at top, rgba(255,255,255,0.08), transparent 26%),
+        linear-gradient(180deg, #193553 0%, #0d2236 100%);
+    border-right: 1px solid rgba(255,255,255,0.08);
+}
+
+section[data-testid="stSidebar"] * {
+    color: #eef5ff;
+}
+
+section[data-testid="stSidebar"] .stCaption {
+    color: rgba(238, 245, 255, 0.76) !important;
+}
+
+section[data-testid="stSidebar"] hr {
+    border-color: rgba(255,255,255,0.08);
+}
+
+.sidebar-brand {
+    position: relative;
+    overflow: hidden;
+    padding: 1.35rem 1.15rem;
+    margin-bottom: 1rem;
+    border-radius: 22px;
+    background: linear-gradient(145deg, rgba(255,255,255,0.16), rgba(255,255,255,0.06));
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 14px 30px rgba(0,0,0,0.16);
+}
+
+.sidebar-brand::after {
+    content: "";
+    position: absolute;
+    inset: auto -2rem -2rem auto;
+    width: 6rem;
+    height: 6rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+}
+
+.sidebar-brand__eyebrow {
+    position: relative;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.72);
+    margin-bottom: 0.55rem;
+}
+
+.sidebar-brand__title {
+    position: relative;
+    font-size: 1.08rem;
+    font-weight: 800;
+    line-height: 1.55;
+    color: #ffffff;
+}
+
+.sidebar-brand__meta {
+    position: relative;
+    margin-top: 0.6rem;
+    font-size: 0.84rem;
+    line-height: 1.7;
+    color: rgba(255,255,255,0.78);
+}
+
+.hero-shell {
+    position: relative;
+    overflow: hidden;
+    padding: 2.35rem 2.5rem;
+    margin-bottom: 1.35rem;
+    border-radius: var(--radius-xl);
+    background:
+        radial-gradient(circle at right top, rgba(255,255,255,0.18), transparent 26%),
+        linear-gradient(135deg, rgba(15,97,125,0.98) 0%, rgba(24,58,96,0.97) 54%, rgba(216,139,45,0.92) 100%);
+    box-shadow: var(--shadow-lg);
+    color: #ffffff;
+}
+
+.hero-shell::before {
+    content: "";
+    position: absolute;
+    inset: 1.2rem auto auto -1.4rem;
+    width: 8rem;
+    height: 8rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+}
+
+.hero-shell::after {
+    content: "";
+    position: absolute;
+    inset: auto -2rem -2rem auto;
+    width: 10rem;
+    height: 10rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+}
+
+.hero-shell.compact {
+    padding: 1.8rem 2rem;
+}
+
+.hero-eyebrow {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.8rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.14);
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.hero-title {
+    position: relative;
+    z-index: 1;
+    margin: 1rem 0 0.55rem 0;
+    font-size: 2.55rem;
+    line-height: 1.2;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.hero-shell.compact .hero-title {
+    font-size: 2.05rem;
+}
+
+.hero-subtitle {
+    position: relative;
+    z-index: 1;
+    max-width: 960px;
+    margin: 0;
+    font-size: 1.02rem;
+    line-height: 1.85;
+    color: rgba(255,255,255,0.88);
+}
+
+.hero-tag-row {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    margin-top: 1.2rem;
+}
+
+.hero-tag {
+    padding: 0.45rem 0.78rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.18);
+    font-size: 0.85rem;
+    color: #ffffff;
 }
 
 .main-title {
     font-size: 2.5rem;
-    color: var(--primary-color);
-    font-weight: bold;
+    color: var(--ink-900);
+    font-weight: 800;
     margin-bottom: 1rem;
     text-align: center;
 }
 
 .section-header {
-    font-size: 1.8rem;
-    color: var(--secondary-color);
-    margin-top: 1.5rem;
-    margin-bottom: 0.5rem;
-    border-bottom: 3px solid var(--secondary-color);
-    padding-bottom: 0.5rem;
+    margin: 0.5rem 0 1rem 0;
+    padding-left: 1rem;
+    border-left: 5px solid var(--accent);
+    font-size: 1.9rem;
+    color: var(--ink-900);
+    font-weight: 800;
+}
+
+.subsection-header {
+    margin: 0.35rem 0 1rem 0;
+    padding-left: 0.95rem;
+    border-left: 4px solid var(--accent);
+    font-size: 1.22rem;
+    font-weight: 800;
+    color: var(--ink-900);
+    letter-spacing: 0.01em;
+}
+
+.info-box,
+.success-box,
+.warning-box,
+.error-box {
+    padding: 1.15rem 1.2rem;
+    border-radius: var(--radius-md);
+    margin: 1rem 0;
+    border: 1px solid var(--panel-border);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(8px);
 }
 
 .info-box {
-    background: linear-gradient(135deg, #e7f3ff 0%, #f0f8ff 100%);
-    padding: 1.2rem;
-    border-radius: 0.8rem;
-    margin: 1rem 0;
-    border-left: 5px solid #2196F3;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background: linear-gradient(135deg, rgba(238,247,252,0.92) 0%, rgba(251,253,255,0.96) 100%);
+    border-left: 5px solid var(--brand);
 }
 
 .success-box {
-    background: linear-gradient(135deg, #d4edda 0%, #e8f5e9 100%);
-    padding: 1.2rem;
-    border-radius: 0.8rem;
-    margin: 1rem 0;
-    border-left: 5px solid #28a745;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background: linear-gradient(135deg, rgba(227,244,236,0.94) 0%, rgba(248,252,249,0.98) 100%);
+    border-left: 5px solid var(--success-color);
 }
 
 .warning-box {
-    background: linear-gradient(135deg, #fff3cd 0%, #fffde7 100%);
-    padding: 1.2rem;
-    border-radius: 0.8rem;
-    margin: 1rem 0;
-    border-left: 5px solid #ffc107;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background: linear-gradient(135deg, rgba(254,245,223,0.95) 0%, rgba(255,252,243,0.98) 100%);
+    border-left: 5px solid var(--warning-color);
 }
 
 .error-box {
-    background: linear-gradient(135deg, #f8d7da 0%, #ffebee 100%);
-    padding: 1.2rem;
-    border-radius: 0.8rem;
-    margin: 1rem 0;
-    border-left: 5px solid #dc3545;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background: linear-gradient(135deg, rgba(251,232,229,0.95) 0%, rgba(255,247,246,0.98) 100%);
+    border-left: 5px solid var(--danger-color);
 }
 
 .param-card {
-    background: #f8f9fa;
-    padding: 1rem;
-    border-radius: 0.5rem;
+    background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(246,249,251,0.92));
+    padding: 1rem 1.05rem;
+    border-radius: var(--radius-md);
     margin: 0.5rem 0;
-    border-left: 3px solid #007bff;
+    border: 1px solid var(--panel-border);
+    box-shadow: var(--shadow-sm);
 }
 
 .param-name {
-    font-weight: bold;
-    color: var(--primary-color);
+    font-weight: 800;
+    color: var(--ink-900);
 }
 
 .param-desc {
-    font-size: 0.9rem;
-    color: #666;
-    margin-top: 0.3rem;
+    font-size: 0.94rem;
+    color: var(--ink-700);
+    line-height: 1.7;
+    margin-top: 0.45rem;
 }
 
 .metric-card {
-    background: white;
+    background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(246,249,251,0.9));
     padding: 1rem;
-    border-radius: 0.5rem;
-    border: 1px solid #ddd;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--panel-border);
+    box-shadow: var(--shadow-sm);
     text-align: center;
 }
 
@@ -135,26 +350,198 @@ st.markdown("""
 }
 
 .compare-panel {
-    background: linear-gradient(135deg, #fffaf0 0%, #fff 100%);
-    padding: 1rem;
-    border-radius: 0.8rem;
-    border: 1px solid #f0e4d3;
+    background: linear-gradient(135deg, rgba(255,250,242,0.96) 0%, rgba(255,255,255,0.96) 100%);
+    padding: 1.2rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--panel-border-strong);
+    box-shadow: var(--shadow-md);
     margin-bottom: 1rem;
 }
 
+.quick-nav-card {
+    padding: 0.15rem 0 0.85rem 0;
+}
+
+.quick-nav-card__icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.3rem;
+}
+
+.quick-nav-card__title {
+    font-size: 1.02rem;
+    font-weight: 800;
+    color: var(--ink-900);
+    margin-bottom: 0.3rem;
+}
+
+.quick-nav-card__desc {
+    min-height: 4.2rem;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: var(--ink-700);
+}
+
+.quick-nav-card__meta {
+    margin-top: 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--brand);
+}
+
+.soft-panel {
+    background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(247,250,252,0.88));
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 1.15rem 1.2rem;
+}
+
+.soft-panel p {
+    margin: 0;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+}
+
 div[data-testid="stMetric"] {
-    background: #ffffff;
-    border: 1px solid #ececec;
-    padding: 0.6rem;
-    border-radius: 0.6rem;
+    background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(247,250,252,0.9));
+    border: 1px solid var(--panel-border);
+    padding: 0.75rem 0.8rem;
+    border-radius: 18px;
+    box-shadow: var(--shadow-sm);
+}
+
+div[data-testid="stMetricLabel"] {
+    color: var(--ink-700);
+}
+
+div[data-testid="stMetricValue"] {
+    color: var(--ink-900);
+}
+
+section[data-testid="stSidebar"] div[data-testid="stMetric"] {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.1);
+    box-shadow: none;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stMetricLabel"],
+section[data-testid="stSidebar"] div[data-testid="stMetricValue"] {
+    color: #ffffff !important;
 }
 
 div[data-baseweb="tab-list"] {
-    gap: 0.5rem;
+    gap: 0.55rem;
+    padding: 0.35rem;
+    background: rgba(255,255,255,0.62);
+    border: 1px solid var(--panel-border);
+    border-radius: 999px;
+    box-shadow: var(--shadow-sm);
+    width: fit-content;
+}
+
+button[data-baseweb="tab"] {
+    height: 42px;
+    padding: 0 1rem;
+    border-radius: 999px;
+    color: var(--ink-700);
+    font-weight: 700;
+}
+
+button[data-baseweb="tab"][aria-selected="true"] {
+    background: linear-gradient(135deg, var(--brand), var(--accent));
+    color: #ffffff !important;
+}
+
+div.stButton > button {
+    width: 100%;
+    min-height: 2.95rem;
+    border-radius: 14px;
+    border: 1px solid rgba(16, 38, 63, 0.12);
+    background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(244,248,250,0.92));
+    color: var(--ink-900);
+    font-weight: 700;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.18s ease;
+}
+
+div.stButton > button:hover {
+    border-color: rgba(15, 97, 125, 0.34);
+    color: var(--brand-deep);
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(17, 35, 56, 0.12);
 }
 
 button[kind="secondary"] {
-    border-radius: 0.6rem;
+    border-radius: 14px;
+}
+
+div[data-baseweb="select"] > div,
+div[data-baseweb="base-input"] > div,
+textarea,
+input {
+    border-radius: 14px !important;
+}
+
+div[data-baseweb="select"] > div,
+div[data-baseweb="base-input"] > div {
+    background: rgba(255,255,255,0.88);
+    border: 1px solid var(--panel-border);
+}
+
+div[data-testid="stExpander"] {
+    overflow: hidden;
+    background: rgba(255,255,255,0.76);
+    border: 1px solid var(--panel-border);
+    border-radius: 18px;
+    box-shadow: var(--shadow-sm);
+}
+
+div[data-testid="stExpander"] details summary p {
+    font-weight: 700;
+    color: var(--ink-900);
+}
+
+div[data-testid="stImage"] img,
+div[data-testid="stVideo"] video {
+    border-radius: 18px;
+    border: 1px solid rgba(16, 38, 63, 0.08);
+    box-shadow: var(--shadow-md);
+}
+
+[data-testid="stMarkdownContainer"] p {
+    line-height: 1.75;
+}
+
+@media (max-width: 900px) {
+    .main .block-container {
+        padding-top: 1.4rem;
+    }
+
+    .hero-shell,
+    .hero-shell.compact {
+        padding: 1.45rem 1.25rem;
+    }
+
+    .hero-title,
+    .hero-shell.compact .hero-title {
+        font-size: 1.8rem;
+    }
+
+    .hero-subtitle {
+        font-size: 0.95rem;
+        line-height: 1.75;
+    }
+
+    .quick-nav-card__desc {
+        min-height: auto;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -1324,7 +1711,11 @@ def render_before_after_compare(exp_name, widget_key_prefix="compare"):
 
 def model_loader_page():
     """模型加载与场景结果查看页面"""
-    st.markdown('<h2 class="section-header">🧠 模型加载与结果查看</h2>', unsafe_allow_html=True)
+    render_section_intro(
+        "🧠 模型加载与结果查看",
+        "按照 Deblur-NeRF 的场景级工作流，先选择已训练实验，再浏览指定视角的原图、重建结果、融合效果和差分细节。",
+        tags=["场景模型", "视角浏览", "结果核验"],
+    )
 
     st.markdown("""
     <div class="info-box">
@@ -1471,35 +1862,122 @@ def create_param_card(param_key, param_info):
     """
     return html
 
+
+def render_hero_section(title, subtitle, eyebrow="Research Workspace", tags=None, compact=False):
+    """渲染统一的页面头图区域"""
+    shell_class = "hero-shell compact" if compact else "hero-shell"
+    safe_title = html.escape(title)
+    safe_subtitle = html.escape(subtitle).replace("\n", "<br>")
+    safe_eyebrow = html.escape(eyebrow)
+    tags_html = ""
+    if tags:
+        tags_html = '<div class="hero-tag-row">' + "".join(
+            f'<span class="hero-tag">{html.escape(tag)}</span>' for tag in tags
+        ) + "</div>"
+    st.markdown(
+        f"""
+        <section class="{shell_class}">
+            <div class="hero-eyebrow">{safe_eyebrow}</div>
+            <h1 class="hero-title">{safe_title}</h1>
+            <p class="hero-subtitle">{safe_subtitle}</p>
+            {tags_html}
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_section_intro(title, subtitle, tags=None):
+    """渲染统一的功能页标题区"""
+    render_hero_section(
+        title=title,
+        subtitle=subtitle,
+        eyebrow="Research Module",
+        tags=tags or [],
+        compact=True,
+    )
+
+
+def render_subsection_title(title):
+    """渲染二级功能标题"""
+    st.markdown(f'<h3 class="subsection-header">{html.escape(title)}</h3>', unsafe_allow_html=True)
+
+
+def render_soft_panel(content_html):
+    """渲染轻量说明面板"""
+    st.markdown(f'<div class="soft-panel">{content_html}</div>', unsafe_allow_html=True)
+
 # ==================== UI 页面组件 ====================
 
 def home_page():
     """首页 - 仪表板"""
-    st.markdown('<h1 class="main-title">🎬 Deblur-NeRF</h1>', unsafe_allow_html=True)
-    
-    st.markdown("""
-    """, unsafe_allow_html=True)
+    render_hero_section(
+        title=PROJECT_TITLE,
+        subtitle="面向神经辐射场与运动感知去模糊研究的统一可视化工作台，覆盖配置管理、训练监控、模型查看、结果推理与实验分析。",
+        eyebrow="NeRF Deblurring Research Platform",
+        tags=["配置到训练", "结果可视化", "实验对比分析"],
+    )
     
     # 导航
-    st.markdown("### 🚀 开始", unsafe_allow_html=True)
+    render_subsection_title("🚀 快速开始")
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
+        st.markdown("""
+        <div class="quick-nav-card">
+            <div class="quick-nav-card__icon">⚙️</div>
+            <div class="quick-nav-card__title">配置管理</div>
+            <div class="quick-nav-card__desc">创建、加载和编辑训练配置，整理实验参数基线。</div>
+            <div class="quick-nav-card__meta">Step 01</div>
+        </div>
+        """, unsafe_allow_html=True)
         if st.button("⚙️ 配置管理", width='stretch'):
             _set_page("配置")
             st.rerun()
     with col2:
+        st.markdown("""
+        <div class="quick-nav-card">
+            <div class="quick-nav-card__icon">🚀</div>
+            <div class="quick-nav-card__title">训练系统</div>
+            <div class="quick-nav-card__desc">启动训练任务，跟踪实验进度，并查看关键曲线变化。</div>
+            <div class="quick-nav-card__meta">Step 02</div>
+        </div>
+        """, unsafe_allow_html=True)
         if st.button("🚀 训练系统", width='stretch'):
             _set_page("训练")
             st.rerun()
     with col3:
+        st.markdown("""
+        <div class="quick-nav-card">
+            <div class="quick-nav-card__icon">🎨</div>
+            <div class="quick-nav-card__title">推理结果</div>
+            <div class="quick-nav-card__desc">渲染测试集或路径视频，并快速查看生成的图像与视频结果。</div>
+            <div class="quick-nav-card__meta">Step 03</div>
+        </div>
+        """, unsafe_allow_html=True)
         if st.button("🎨 推理结果", width='stretch'):
             _set_page("推理")
             st.rerun()
     with col4:
+        st.markdown("""
+        <div class="quick-nav-card">
+            <div class="quick-nav-card__icon">📊</div>
+            <div class="quick-nav-card__title">分析对比</div>
+            <div class="quick-nav-card__desc">并排比较不同实验输出，提炼 PSNR、SSIM 等性能指标。</div>
+            <div class="quick-nav-card__meta">Step 04</div>
+        </div>
+        """, unsafe_allow_html=True)
         if st.button("📊 分析对比", width='stretch'):
             _set_page("分析")
             st.rerun()
     with col5:
+        st.markdown("""
+        <div class="quick-nav-card">
+            <div class="quick-nav-card__icon">🧠</div>
+            <div class="quick-nav-card__title">模型加载</div>
+            <div class="quick-nav-card__desc">加载训练完成的模型，逐视角检查恢复效果和结构细节。</div>
+            <div class="quick-nav-card__meta">Step 05</div>
+        </div>
+        """, unsafe_allow_html=True)
         if st.button("🧠 模型加载", width='stretch'):
             _set_page("模型")
             st.rerun()
@@ -1507,6 +1985,7 @@ def home_page():
     st.divider()
     
     # 项目统计
+    render_subsection_title("📈 项目概览")
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         configs = get_config_files()
@@ -1531,7 +2010,7 @@ def home_page():
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("### 💻 系统信息")
+            render_subsection_title("💻 系统信息")
             stats = get_system_stats()
             if stats:
                 st.progress(stats['cpu'] / 100, text=f"CPU: {stats['cpu']:.1f}%")
@@ -1545,7 +2024,7 @@ def home_page():
                 st.progress(gpu_info['util'] / 100, text=f"利用率: {gpu_info['util']:.1f}%")
         
         with col2:
-            st.markdown("### 📁 最近实验")
+            render_subsection_title("📁 最近实验")
             exps = get_experiments()[:5]
             if exps:
                 for exp in exps:
@@ -1561,7 +2040,8 @@ def home_page():
     st.divider()
     
     # 提示
-    st.markdown("### 💡 提示")
+    render_subsection_title("💡 使用建议")
+    render_soft_panel("<p>推荐流程：先建立配置基线，再启动训练，随后在模型与推理模块核查可视结果，最后进入分析页汇总定量指标。</p>")
     tips = [
         "📝 **首次使用**: 先在'配置管理'创建或加载配置",
         "🚀 **开始训练**: 配置完成后点击'训练系统'启动训练",
@@ -1575,7 +2055,11 @@ def home_page():
 
 def config_page():
     """配置管理页面"""
-    st.markdown('<h2 class="section-header">⚙️ 配置</h2>', unsafe_allow_html=True)
+    render_section_intro(
+        "⚙️ 配置",
+        "在这里维护实验配置、快速套用预设，并查看关键参数的解释与推荐范围，帮助训练过程更稳定地复现。",
+        tags=["预设模板", "参数编辑", "配置说明"],
+    )
 
     _sync_config_editor_widget_state()
 
@@ -1587,7 +2071,7 @@ def config_page():
     
     # Tab 1: 预设
     with tab1:
-        st.markdown('<h3 style="color: #2ca02c;">配置预设</h3>', unsafe_allow_html=True)
+        render_subsection_title("配置预设")
         
         st.markdown("""
         <div class="info-box">
@@ -1618,7 +2102,7 @@ def config_page():
     
     # Tab 2: 新建配置
     with tab2:
-        st.markdown('<h3 style="color: #2ca02c;">创建新配置</h3>', unsafe_allow_html=True)
+        render_subsection_title("创建新配置")
         
         config_name = st.text_input("配置文件名", value="my_config", help="不需要.txt后缀")
         
@@ -1885,7 +2369,7 @@ def config_page():
     
     # Tab 3: 编辑配置
     with tab3:
-        st.markdown('<h3 style="color: #2ca02c;">编辑现有配置</h3>', unsafe_allow_html=True)
+        render_subsection_title("编辑现有配置")
         
         configs = get_config_files()
         if not configs:
@@ -1910,7 +2394,7 @@ def config_page():
     
     # Tab 4: 参数详解
     with tab4:
-        st.markdown('<h3 style="color: #2ca02c;">参数详细说明</h3>', unsafe_allow_html=True)
+        render_subsection_title("参数详细说明")
         
         # 参数分类显示
         categories = {
@@ -1949,12 +2433,16 @@ def config_page():
 
 def training_page():
     """训练管理页面"""
-    st.markdown('<h2 class="section-header">🚀 训练</h2>', unsafe_allow_html=True)
+    render_section_intro(
+        "🚀 训练",
+        "集中管理训练任务启动、过程监控与曲线分析，让实验状态、日志输出和核心指标变化更直观。",
+        tags=["训练启动", "状态监控", "曲线分析"],
+    )
     
     tab1, tab2, tab3 = st.tabs(["🎯 启动训练", "📊 训练监控", "📈 曲线分析"])
     
     with tab1:
-        st.markdown('<h3 style="color: #2ca02c;">启动训练任务</h3>', unsafe_allow_html=True)
+        render_subsection_title("启动训练任务")
         
         configs = get_config_files()
         if not configs:
@@ -2065,7 +2553,7 @@ def training_page():
                                     st.warning(f"⚠️ {warning}")
     
     with tab2:
-        st.markdown('<h3 style="color: #2ca02c;">训练实时监控</h3>', unsafe_allow_html=True)
+        render_subsection_title("训练实时监控")
         
         exps = get_experiments()
         
@@ -2143,7 +2631,7 @@ def training_page():
                 """, unsafe_allow_html=True)
     
     with tab3:
-        st.markdown('<h3 style="color: #2ca02c;">训练曲线分析</h3>', unsafe_allow_html=True)
+        render_subsection_title("训练曲线分析")
         
         exps = get_experiments()
         
@@ -2231,7 +2719,11 @@ def training_page():
 
 def inference_page():
     """推理与结果页面"""
-    st.markdown('<h2 class="section-header">🎨 推理与结果展示</h2>', unsafe_allow_html=True)
+    render_section_intro(
+        "🎨 推理与结果展示",
+        "运行测试集渲染、输出路径视频，并从图像、视频和质量指标三个维度回看模型恢复效果。",
+        tags=["渲染输出", "前后对比", "质量评估"],
+    )
 
     # 避免在 st.tabs 中无条件渲染所有媒体资源。
     # Streamlit 会在每次 rerun 时执行所有 tab 内容，图像/视频较多时容易反复创建新的内存媒体 ID，
@@ -2245,7 +2737,7 @@ def inference_page():
     )
 
     if inference_section == "🎯 运行推理":
-        st.markdown('<h3 style="color: #2ca02c;">运行推理</h3>', unsafe_allow_html=True)
+        render_subsection_title("运行推理")
         
         exps = get_experiments()
         if not exps:
@@ -2325,7 +2817,7 @@ def inference_page():
                         st.code(_format_shell_command(command_args), language="bash")
 
     elif inference_section == "🖼️ 结果查看":
-        st.markdown('<h3 style="color: #2ca02c;">查看渲染结果</h3>', unsafe_allow_html=True)
+        render_subsection_title("查看渲染结果")
         
         exps = get_experiments()
         if not exps:
@@ -2380,7 +2872,7 @@ def inference_page():
                     st.info(f"还有 {len(videos) - 4} 个视频未展示")
 
     elif inference_section == "🔍 前后对比":
-        st.markdown('<h3 style="color: #2ca02c;">训练前后图像对比</h3>', unsafe_allow_html=True)
+        render_subsection_title("训练前后图像对比")
         st.caption("自动匹配实验输入图像与渲染输出图，支持融合滑块与差分查看。")
         exps = get_experiments()
         if not exps:
@@ -2395,7 +2887,7 @@ def inference_page():
             render_before_after_compare(selected_exp, widget_key_prefix=f"before_after_{get_experiment_widget_key(selected_exp)}")
 
     else:
-        st.markdown('<h3 style="color: #2ca02c;">质量指标分析</h3>', unsafe_allow_html=True)
+        render_subsection_title("质量指标分析")
         
         st.markdown("""
         <div class="info-box">
@@ -2459,12 +2951,16 @@ def inference_page():
 
 def analysis_page():
     """对比分析页面"""
-    st.markdown('<h2 class="section-header">📊 实验对比分析</h2>', unsafe_allow_html=True)
+    render_section_intro(
+        "📊 实验对比分析",
+        "把不同实验结果放到同一视野下查看，兼顾主观图像比较和定量指标概览，方便快速判断方案优劣。",
+        tags=["并行对比", "性能报告", "指标概览"],
+    )
     
     tab1, tab2 = st.tabs(["🔄 并行对比", "📈 性能分析"])
     
     with tab1:
-        st.markdown('<h3 style="color: #2ca02c;">多实验并行对比</h3>', unsafe_allow_html=True)
+        render_subsection_title("多实验并行对比")
         
         exps = get_experiments()
         if len(exps) < 2:
@@ -2520,7 +3016,7 @@ def analysis_page():
                         st.info("未找到两组实验的真实 PSNR 记录，暂无法显示量化对比。")
     
     with tab2:
-        st.markdown('<h3 style="color: #2ca02c;">性能分析报告</h3>', unsafe_allow_html=True)
+        render_subsection_title("性能分析报告")
         
         exps = get_experiments()
         
@@ -2576,7 +3072,16 @@ def main():
         st.session_state.page_sync_pending = False
 
     with st.sidebar:
-        st.title("🎬 Deblur-NeRF")
+        st.markdown(
+            f"""
+            <div class="sidebar-brand">
+                <div class="sidebar-brand__eyebrow">Research Console</div>
+                <div class="sidebar-brand__title">{html.escape(PROJECT_TITLE)}</div>
+                <div class="sidebar-brand__meta">配置、训练、推理、模型查看与实验分析的一体化可视化工作台</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         st.divider()
         
         st.markdown("### 📌 导航菜单")
@@ -2632,7 +3137,7 @@ def main():
         analysis_page()
     
     st.divider()
-    st.caption("Deblur-NeRF UI")
+    st.caption(PROJECT_FOOTER)
 
 if __name__ == "__main__":
     main()
