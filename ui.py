@@ -14,6 +14,7 @@ import sys
 import re
 import shlex
 import html
+from textwrap import dedent
 from datetime import datetime
 from PIL import Image
 import psutil
@@ -2078,31 +2079,30 @@ def render_before_after_compare(exp_name, widget_key_prefix="compare"):
         st.info("找到了图像，但无法建立前后对应关系。")
         return
 
-    st.markdown('<div class="compare-panel">', unsafe_allow_html=True)
-    col_a, col_b, col_c = st.columns([1, 1, 1])
-    with col_a:
-        st.metric("原图数量", len(before_images))
-    with col_b:
-        st.metric("结果数量", len(after_images))
-    with col_c:
-        st.metric("可对比对数", len(pairs))
+    with st.container(border=True):
+        col_a, col_b, col_c = st.columns([1, 1, 1])
+        with col_a:
+            st.metric("原图数量", len(before_images))
+        with col_b:
+            st.metric("结果数量", len(after_images))
+        with col_c:
+            st.metric("可对比对数", len(pairs))
 
-    idx = st.slider(
-        "选择图像索引",
-        min_value=0,
-        max_value=len(pairs) - 1,
-        value=0,
-        key=f"{widget_key_prefix}_img_idx"
-    )
-    alpha = st.slider(
-        "融合滑块（0=原图，1=训练后）",
-        min_value=0.0,
-        max_value=1.0,
-        value=0.5,
-        step=0.05,
-        key=f"{widget_key_prefix}_alpha"
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
+        idx = st.slider(
+            "选择图像索引",
+            min_value=0,
+            max_value=len(pairs) - 1,
+            value=0,
+            key=f"{widget_key_prefix}_img_idx"
+        )
+        alpha = st.slider(
+            "融合滑块（0=原图，1=训练后）",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.5,
+            step=0.05,
+            key=f"{widget_key_prefix}_alpha"
+        )
 
     before_path, after_path = pairs[idx]
     try:
@@ -2138,13 +2138,11 @@ def model_loader_page():
         tags=["场景模型", "视角浏览", "结果核验"],
     )
 
-    st.markdown("""
-    <div class="info-box">
-    <strong>页面说明</strong><br>
-    这里遵循 Deblur-NeRF 原始项目的工作方式：先加载一个已经训练完成的场景模型，再选择该场景中的某个视角，查看原图与模型渲染结果。<br>
-    <strong>注意</strong>: 当前项目是场景级 NeRF，不做任意单张陌生图片的通用去模糊推理。
-    </div>
-    """, unsafe_allow_html=True)
+    render_info_box(
+        "<strong>页面说明</strong><br>"
+        "这里遵循 Deblur-NeRF 原始项目的工作方式：先加载一个已经训练完成的场景模型，再选择该场景中的某个视角，查看原图与模型渲染结果。<br>"
+        "<strong>注意</strong>: 当前项目是场景级 NeRF，不做任意单张陌生图片的通用去模糊推理。"
+    )
 
     exps = get_experiments()
     if not exps:
@@ -2272,15 +2270,15 @@ def model_loader_page():
 
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.markdown(f'<div class="image-card-title">输入原图: {html.escape(selected_record["before_name"])}</div>', unsafe_allow_html=True)
+            render_html(f'<div class="image-card-title">输入原图: {html.escape(selected_record["before_name"])}</div>')
             st.image(before_img, width='stretch')
         with col2:
-            st.markdown(f'<div class="image-card-title">训练后结果图: {html.escape(selected_record["after_name"])}</div>', unsafe_allow_html=True)
+            render_html(f'<div class="image-card-title">训练后结果图: {html.escape(selected_record["after_name"])}</div>')
             st.image(after_img, width='stretch')
         with col3:
-            st.markdown('<div class="image-card-title">融合预览</div>', unsafe_allow_html=True)
+            render_html('<div class="image-card-title">融合预览</div>')
             st.image(blend_img, width='stretch')
-            st.markdown('<div class="image-card-title">差分图</div>', unsafe_allow_html=True)
+            render_html('<div class="image-card-title">差分图</div>')
             st.image(diff_img, width='stretch')
 
         st.caption(
@@ -2292,16 +2290,39 @@ def model_loader_page():
 
 def create_param_card(param_key, param_info):
     """创建参数信息卡片"""
-    html = f"""
-    <div class="param-card">
-        <div class="param-name">{param_info.get('desc', param_key)}</div>
-        <div class="param-desc">{param_info.get('help', '')}</div>
-        <div style="font-size: 0.85rem; color: #0066cc; margin-top: 0.3rem;">
-            {param_info.get('tips', '').replace('推荐值', '💡 推荐值')}
-        </div>
-    </div>
-    """
-    return html
+    tip = param_info.get('tips', '').replace('推荐值', '💡 推荐值')
+    return (
+        '<div class="param-card">'
+        f'<div class="param-name">{html.escape(param_info.get("desc", param_key))}</div>'
+        f'<div class="param-desc">{html.escape(param_info.get("help", ""))}</div>'
+        f'<div style="font-size: 0.85rem; color: #0066cc; margin-top: 0.3rem;">{html.escape(tip)}</div>'
+        '</div>'
+    )
+
+
+def render_html(markup):
+    """稳定渲染 HTML，避免缩进的多行字符串被 Markdown 当作代码块显示。"""
+    cleaned = dedent(str(markup)).strip()
+    st.markdown(cleaned, unsafe_allow_html=True)
+
+
+def render_info_box(body_html, box_class="info-box"):
+    """渲染提示盒。body_html 由调用方控制，可包含少量安全 HTML 标签。"""
+    render_html(f'<div class="{html.escape(box_class)}">{body_html}</div>')
+
+
+def render_quick_nav_card(icon, title, desc, meta):
+    """渲染首页快捷入口卡片"""
+    render_html(
+        (
+            '<div class="quick-nav-card">'
+            f'<div class="quick-nav-card__icon">{html.escape(icon)}</div>'
+            f'<div class="quick-nav-card__title">{html.escape(title)}</div>'
+            f'<div class="quick-nav-card__desc">{html.escape(desc)}</div>'
+            f'<div class="quick-nav-card__meta">{html.escape(meta)}</div>'
+            '</div>'
+        )
+    )
 
 
 def render_hero_section(title, subtitle, eyebrow="Research Workspace", tags=None, compact=False):
@@ -2315,16 +2336,15 @@ def render_hero_section(title, subtitle, eyebrow="Research Workspace", tags=None
         tags_html = '<div class="hero-tag-row">' + "".join(
             f'<span class="hero-tag">{html.escape(tag)}</span>' for tag in tags
         ) + "</div>"
-    st.markdown(
-        f"""
-        <section class="{shell_class}">
-            <div class="hero-eyebrow">{safe_eyebrow}</div>
-            <h1 class="hero-title">{safe_title}</h1>
-            <p class="hero-subtitle">{safe_subtitle}</p>
-            {tags_html}
-        </section>
-        """,
-        unsafe_allow_html=True,
+    render_html(
+        (
+            f'<section class="{shell_class}">'
+            f'<div class="hero-eyebrow">{safe_eyebrow}</div>'
+            f'<h1 class="hero-title">{safe_title}</h1>'
+            f'<p class="hero-subtitle">{safe_subtitle}</p>'
+            f'{tags_html}'
+            '</section>'
+        )
     )
 
 
@@ -2341,26 +2361,25 @@ def render_section_intro(title, subtitle, tags=None):
 
 def render_subsection_title(title):
     """渲染二级功能标题"""
-    st.markdown(f'<h3 class="subsection-header">{html.escape(title)}</h3>', unsafe_allow_html=True)
+    render_html(f'<h3 class="subsection-header">{html.escape(title)}</h3>')
 
 
 def render_soft_panel(content_html):
     """渲染轻量说明面板"""
-    st.markdown(f'<div class="soft-panel">{content_html}</div>', unsafe_allow_html=True)
+    render_html(f'<div class="soft-panel">{content_html}</div>')
 
 
 def render_empty_state(title, body, hint=None):
     """渲染统一空状态提示"""
     hint_html = f'<div class="empty-state__hint">{html.escape(hint)}</div>' if hint else ""
-    st.markdown(
-        f"""
-        <div class="empty-state">
-            <div class="empty-state__title">{html.escape(title)}</div>
-            <div class="empty-state__body">{html.escape(body)}</div>
-            {hint_html}
-        </div>
-        """,
-        unsafe_allow_html=True,
+    render_html(
+        (
+            '<div class="empty-state">'
+            f'<div class="empty-state__title">{html.escape(title)}</div>'
+            f'<div class="empty-state__body">{html.escape(body)}</div>'
+            f'{hint_html}'
+            '</div>'
+        )
     )
 
 
@@ -2369,18 +2388,15 @@ def render_workflow_strip(steps):
     cards_html = []
     for idx, step in enumerate(steps, start=1):
         cards_html.append(
-            f"""
-            <div class="workflow-step">
-                <div class="workflow-step__index">{idx:02d}</div>
-                <div class="workflow-step__title">{html.escape(step["title"])}</div>
-                <div class="workflow-step__desc">{html.escape(step["desc"])}</div>
-            </div>
-            """
+            (
+                '<div class="workflow-step">'
+                f'<div class="workflow-step__index">{idx:02d}</div>'
+                f'<div class="workflow-step__title">{html.escape(step["title"])}</div>'
+                f'<div class="workflow-step__desc">{html.escape(step["desc"])}</div>'
+                '</div>'
+            )
         )
-    st.markdown(
-        f'<div class="workflow-strip">{"".join(cards_html)}</div>',
-        unsafe_allow_html=True,
-    )
+    render_html(f'<div class="workflow-strip">{"".join(cards_html)}</div>')
 
 
 def render_insight_cards(cards):
@@ -2388,18 +2404,15 @@ def render_insight_cards(cards):
     cards_html = []
     for card in cards:
         cards_html.append(
-            f"""
-            <div class="insight-card">
-                <div class="insight-card__kicker">{html.escape(card["kicker"])}</div>
-                <div class="insight-card__title">{html.escape(card["title"])}</div>
-                <div class="insight-card__body">{html.escape(card["body"])}</div>
-            </div>
-            """
+            (
+                '<div class="insight-card">'
+                f'<div class="insight-card__kicker">{html.escape(card["kicker"])}</div>'
+                f'<div class="insight-card__title">{html.escape(card["title"])}</div>'
+                f'<div class="insight-card__body">{html.escape(card["body"])}</div>'
+                '</div>'
+            )
         )
-    st.markdown(
-        f'<div class="insight-grid">{"".join(cards_html)}</div>',
-        unsafe_allow_html=True,
-    )
+    render_html(f'<div class="insight-grid">{"".join(cards_html)}</div>')
 
 
 def render_model_fact_grid(facts):
@@ -2407,17 +2420,14 @@ def render_model_fact_grid(facts):
     fact_html = []
     for label, value in facts:
         fact_html.append(
-            f"""
-            <div class="model-fact">
-                <div class="model-fact__label">{html.escape(str(label))}</div>
-                <div class="model-fact__value">{html.escape(str(value))}</div>
-            </div>
-            """
+            (
+                '<div class="model-fact">'
+                f'<div class="model-fact__label">{html.escape(str(label))}</div>'
+                f'<div class="model-fact__value">{html.escape(str(value))}</div>'
+                '</div>'
+            )
         )
-    st.markdown(
-        f'<div class="model-facts">{"".join(fact_html)}</div>',
-        unsafe_allow_html=True,
-    )
+    render_html(f'<div class="model-facts">{"".join(fact_html)}</div>')
 
 
 def style_plotly_figure(fig, *, height=400, show_legend=True):
@@ -2483,62 +2493,27 @@ def home_page():
     render_subsection_title("🚀 快速开始")
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        st.markdown("""
-        <div class="quick-nav-card">
-            <div class="quick-nav-card__icon">⚙️</div>
-            <div class="quick-nav-card__title">配置管理</div>
-            <div class="quick-nav-card__desc">创建、加载和编辑训练配置，整理实验参数基线。</div>
-            <div class="quick-nav-card__meta">Step 01</div>
-        </div>
-        """, unsafe_allow_html=True)
+        render_quick_nav_card("⚙️", "配置管理", "创建、加载和编辑训练配置，整理实验参数基线。", "Step 01")
         if st.button("⚙️ 配置管理", width='stretch'):
             _set_page("配置")
             st.rerun()
     with col2:
-        st.markdown("""
-        <div class="quick-nav-card">
-            <div class="quick-nav-card__icon">🚀</div>
-            <div class="quick-nav-card__title">训练系统</div>
-            <div class="quick-nav-card__desc">启动训练任务，跟踪实验进度，并查看关键曲线变化。</div>
-            <div class="quick-nav-card__meta">Step 02</div>
-        </div>
-        """, unsafe_allow_html=True)
+        render_quick_nav_card("🚀", "训练系统", "启动训练任务，跟踪实验进度，并查看关键曲线变化。", "Step 02")
         if st.button("🚀 训练系统", width='stretch'):
             _set_page("训练")
             st.rerun()
     with col3:
-        st.markdown("""
-        <div class="quick-nav-card">
-            <div class="quick-nav-card__icon">🎨</div>
-            <div class="quick-nav-card__title">推理结果</div>
-            <div class="quick-nav-card__desc">渲染测试集或路径视频，并快速查看生成的图像与视频结果。</div>
-            <div class="quick-nav-card__meta">Step 03</div>
-        </div>
-        """, unsafe_allow_html=True)
+        render_quick_nav_card("🎨", "推理结果", "渲染测试集或路径视频，并快速查看生成的图像与视频结果。", "Step 03")
         if st.button("🎨 推理结果", width='stretch'):
             _set_page("推理")
             st.rerun()
     with col4:
-        st.markdown("""
-        <div class="quick-nav-card">
-            <div class="quick-nav-card__icon">📊</div>
-            <div class="quick-nav-card__title">分析对比</div>
-            <div class="quick-nav-card__desc">并排比较不同实验输出，提炼 PSNR、SSIM 等性能指标。</div>
-            <div class="quick-nav-card__meta">Step 04</div>
-        </div>
-        """, unsafe_allow_html=True)
+        render_quick_nav_card("📊", "分析对比", "并排比较不同实验输出，提炼 PSNR、SSIM 等性能指标。", "Step 04")
         if st.button("📊 分析对比", width='stretch'):
             _set_page("分析")
             st.rerun()
     with col5:
-        st.markdown("""
-        <div class="quick-nav-card">
-            <div class="quick-nav-card__icon">🧠</div>
-            <div class="quick-nav-card__title">模型加载</div>
-            <div class="quick-nav-card__desc">加载训练完成的模型，逐视角检查恢复效果和结构细节。</div>
-            <div class="quick-nav-card__meta">Step 05</div>
-        </div>
-        """, unsafe_allow_html=True)
+        render_quick_nav_card("🧠", "模型加载", "加载训练完成的模型，逐视角检查恢复效果和结构细节。", "Step 05")
         if st.button("🧠 模型加载", width='stretch'):
             _set_page("模型")
             st.rerun()
@@ -2645,12 +2620,7 @@ def config_page():
     with tab1:
         render_subsection_title("配置预设")
         
-        st.markdown("""
-        <div class="info-box">
-        <strong>选择预设方创建配置</strong><br>
-        这些预设已经根据常见场景和硬件配置优化过参数。
-        </div>
-        """, unsafe_allow_html=True)
+        render_info_box("<strong>选择预设方创建配置</strong><br>这些预设已经根据常见场景和硬件配置优化过参数。")
         
         cols = st.columns(2)
         for idx, (preset_name, preset_params) in enumerate(PRESET_CONFIGS.items()):
@@ -3208,15 +3178,16 @@ def training_page():
                 
                 box_class = "success-box" if status["is_running_hint"] else "warning-box"
                 target_iters_text = status["target_iters"] if status["target_iters"] > 0 else "未知"
-                st.markdown(f"""
-                <div class="{box_class}">
-                <strong>{status["label"]}</strong><br>
-                {status["detail"]}<br>
-                当前迭代: {status["latest_iter"]}/{target_iters_text}<br>
-                检查点数: {stats['ckpt_count']}<br>
-                输出图像数: {stats['images_count']}
-                </div>
-                """, unsafe_allow_html=True)
+                render_info_box(
+                    (
+                        f'<strong>{html.escape(status["label"])}</strong><br>'
+                        f'{html.escape(status["detail"])}<br>'
+                        f'当前迭代: {status["latest_iter"]}/{target_iters_text}<br>'
+                        f'检查点数: {stats["ckpt_count"]}<br>'
+                        f'输出图像数: {stats["images_count"]}'
+                    ),
+                    box_class=box_class,
+                )
     
     with tab3:
         render_subsection_title("训练曲线分析")
@@ -3457,7 +3428,7 @@ def inference_page():
                     "运行测试集渲染或生成视频",
                 )
             if images:
-                st.markdown(f'<span class="status-pill">找到 {len(images)} 张结果图像</span>', unsafe_allow_html=True)
+                render_html(f'<span class="status-pill">找到 {len(images)} 张结果图像</span>')
                 
                 # 图像网格显示
                 cols = st.columns(3)
@@ -3465,7 +3436,7 @@ def inference_page():
                     with cols[idx % 3]:
                         try:
                             img = Image.open(img_path)
-                            st.markdown(f'<div class="image-card-title">{html.escape(img_path.name)}</div>', unsafe_allow_html=True)
+                            render_html(f'<div class="image-card-title">{html.escape(img_path.name)}</div>')
                             st.image(img, width='stretch')
                         except Exception as e:
                             st.error(f"加载失败: {img_path.name}")
@@ -3479,16 +3450,16 @@ def inference_page():
                             with cols[(idx+9) % 3]:
                                 try:
                                     img = Image.open(img_path)
-                                    st.markdown(f'<div class="image-card-title">{html.escape(img_path.name)}</div>', unsafe_allow_html=True)
+                                    render_html(f'<div class="image-card-title">{html.escape(img_path.name)}</div>')
                                     st.image(img, width='stretch')
                                 except Exception as e:
                                     st.error(f"加载失败: {img_path.name}")
 
             if videos:
                 st.divider()
-                st.markdown(f'<span class="status-pill">找到 {len(videos)} 个结果视频</span>', unsafe_allow_html=True)
+                render_html(f'<span class="status-pill">找到 {len(videos)} 个结果视频</span>')
                 for video_path in videos[:4]:
-                    st.markdown(f'<div class="image-card-title">{html.escape(video_path.name)}</div>', unsafe_allow_html=True)
+                    render_html(f'<div class="image-card-title">{html.escape(video_path.name)}</div>')
                     st.video(str(video_path))
                     st.caption(f"路径: `{video_path}`")
 
@@ -3517,14 +3488,12 @@ def inference_page():
     else:
         render_subsection_title("质量指标分析")
         
-        st.markdown("""
-        <div class="info-box">
-        <strong>图像质量评估指标</strong><br>
-        • <strong>PSNR</strong>: 峰值信噪比，值越高越好<br>
-        • <strong>SSIM</strong>: 结构相似度，范围0-1，越接近1越好<br>
-        • <strong>LPIPS</strong>: 感知损失，值越低越好
-        </div>
-        """, unsafe_allow_html=True)
+        render_info_box(
+            "<strong>图像质量评估指标</strong><br>"
+            "• <strong>PSNR</strong>: 峰值信噪比，值越高越好<br>"
+            "• <strong>SSIM</strong>: 结构相似度，范围0-1，越接近1越好<br>"
+            "• <strong>LPIPS</strong>: 感知损失，值越低越好"
+        )
         
         exps = get_experiments()
         
@@ -3627,7 +3596,7 @@ def analysis_page():
                     
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.markdown(f'<div class="image-card-title">{html.escape(get_experiment_display_name(exp1))}</div>', unsafe_allow_html=True)
+                        render_html(f'<div class="image-card-title">{html.escape(get_experiment_display_name(exp1))}</div>')
                         try:
                             img1 = Image.open(images1[img_idx])
                             st.image(img1, width='stretch')
@@ -3635,7 +3604,7 @@ def analysis_page():
                             st.error("图像加载失败")
                     
                     with col2:
-                        st.markdown(f'<div class="image-card-title">{html.escape(get_experiment_display_name(exp2))}</div>', unsafe_allow_html=True)
+                        render_html(f'<div class="image-card-title">{html.escape(get_experiment_display_name(exp2))}</div>')
                         try:
                             img2 = Image.open(images2[img_idx])
                             st.image(img2, width='stretch')
@@ -3720,15 +3689,14 @@ def main():
         st.session_state.page_sync_pending = False
 
     with st.sidebar:
-        st.markdown(
-            f"""
-            <div class="sidebar-brand">
-                <div class="sidebar-brand__eyebrow">Research Console</div>
-                <div class="sidebar-brand__title">{html.escape(PROJECT_TITLE)}</div>
-                <div class="sidebar-brand__meta">配置、训练、推理、模型查看与实验分析的一体化可视化工作台</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+        render_html(
+            (
+                '<div class="sidebar-brand">'
+                '<div class="sidebar-brand__eyebrow">Research Console</div>'
+                f'<div class="sidebar-brand__title">{html.escape(PROJECT_TITLE)}</div>'
+                '<div class="sidebar-brand__meta">配置、训练、推理、模型查看与实验分析的一体化可视化工作台</div>'
+                '</div>'
+            )
         )
         st.divider()
         
