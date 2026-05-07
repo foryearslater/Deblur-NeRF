@@ -360,6 +360,67 @@ section[data-testid="stSidebar"] hr {
     margin-bottom: 1rem;
 }
 
+.workflow-strip {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.85rem;
+    margin: 0.35rem 0 1.35rem;
+}
+
+.workflow-step {
+    position: relative;
+    overflow: hidden;
+    min-height: 152px;
+    padding: 1.05rem 1rem;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(247,250,252,0.9));
+    border: 1px solid var(--panel-border);
+    box-shadow: var(--shadow-sm);
+}
+
+.workflow-step::after {
+    content: "";
+    position: absolute;
+    inset: auto -1.6rem -1.8rem auto;
+    width: 4.6rem;
+    height: 4.6rem;
+    border-radius: 999px;
+    background: rgba(15, 97, 125, 0.07);
+}
+
+.workflow-step__index {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--brand), var(--accent));
+    color: #ffffff;
+    font-size: 0.82rem;
+    font-weight: 850;
+}
+
+.workflow-step__title {
+    position: relative;
+    z-index: 1;
+    margin-top: 0.78rem;
+    font-size: 1.02rem;
+    font-weight: 850;
+    color: var(--ink-900);
+}
+
+.workflow-step__desc {
+    position: relative;
+    z-index: 1;
+    margin-top: 0.42rem;
+    font-size: 0.9rem;
+    line-height: 1.68;
+    color: var(--ink-700);
+}
+
 .quick-nav-card {
     padding: 0.15rem 0 0.85rem 0;
 }
@@ -543,6 +604,10 @@ div[data-testid="stVideo"] video {
 
     .quick-nav-card__desc {
         min-height: auto;
+    }
+
+    .workflow-strip {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -880,6 +945,10 @@ pre {
 
     .quick-nav-card {
         min-height: auto;
+    }
+
+    .workflow-strip {
+        grid-template-columns: 1fr;
     }
 }
 </style>
@@ -2301,17 +2370,23 @@ def render_empty_state(title, body, hint=None):
 
 
 def render_workflow_strip(steps):
-    """使用 Streamlit 原生组件渲染首页研究流程，避免 HTML 片段外露。"""
+    """渲染首页研究流程。"""
     if not steps:
         return
 
-    cols = st.columns(len(steps))
+    steps_html = []
     for idx, step in enumerate(steps, start=1):
-        with cols[idx - 1]:
-            with st.container(border=True):
-                st.caption(f"Step {idx:02d}")
-                st.markdown(f"**{step['title']}**")
-                st.write(step["desc"])
+        steps_html.append(
+            (
+                '<div class="workflow-step">'
+                f'<div class="workflow-step__index">{idx:02d}</div>'
+                f'<div class="workflow-step__title">{html.escape(step["title"])}</div>'
+                f'<div class="workflow-step__desc">{html.escape(step["desc"])}</div>'
+                '</div>'
+            )
+        )
+
+    render_html(f'<div class="workflow-strip">{"".join(steps_html)}</div>')
 
 
 def render_insight_cards(cards):
