@@ -715,58 +715,6 @@ body {
     background: rgba(15, 97, 125, 0.06);
 }
 
-.workflow-strip {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 0.85rem;
-    margin: 0.65rem 0 1.25rem;
-}
-
-.workflow-step {
-    position: relative;
-    overflow: hidden;
-    min-height: 132px;
-    padding: 1rem;
-    border-radius: 22px;
-    background: linear-gradient(160deg, rgba(255,255,255,0.9), rgba(246,250,252,0.82));
-    border: 1px solid rgba(16,38,63,0.1);
-    box-shadow: var(--shadow-sm);
-}
-
-.workflow-step::before {
-    content: "";
-    position: absolute;
-    inset: 0 0 auto 0;
-    height: 4px;
-    background: linear-gradient(90deg, var(--brand), var(--accent));
-}
-
-.workflow-step__index {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 999px;
-    background: rgba(16,38,63,0.08);
-    color: var(--brand-deep);
-    font-size: 0.82rem;
-    font-weight: 800;
-}
-
-.workflow-step__title {
-    margin-top: 0.72rem;
-    font-weight: 850;
-    color: var(--ink-900);
-}
-
-.workflow-step__desc {
-    margin-top: 0.38rem;
-    color: var(--ink-700);
-    font-size: 0.88rem;
-    line-height: 1.65;
-}
-
 .insight-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -841,34 +789,6 @@ body {
     color: var(--brand-deep);
     font-size: 0.84rem;
     font-weight: 750;
-}
-
-.model-facts {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
-    margin: 0.75rem 0 0.25rem;
-}
-
-.model-fact {
-    padding: 0.8rem 0.9rem;
-    border-radius: 16px;
-    background: rgba(255,255,255,0.72);
-    border: 1px solid rgba(16,38,63,0.08);
-}
-
-.model-fact__label {
-    color: var(--ink-500);
-    font-size: 0.78rem;
-    font-weight: 750;
-}
-
-.model-fact__value {
-    margin-top: 0.25rem;
-    color: var(--ink-900);
-    font-size: 0.96rem;
-    font-weight: 800;
-    overflow-wrap: anywhere;
 }
 
 .image-card-title {
@@ -948,16 +868,13 @@ pre {
 }
 
 @media (max-width: 1100px) {
-    .workflow-strip,
     .insight-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 760px) {
-    .workflow-strip,
-    .insight-grid,
-    .model-facts {
+    .insight-grid {
         grid-template-columns: 1fr;
     }
 
@@ -2384,19 +2301,17 @@ def render_empty_state(title, body, hint=None):
 
 
 def render_workflow_strip(steps):
-    """渲染首页研究流程条"""
-    cards_html = []
+    """使用 Streamlit 原生组件渲染首页研究流程，避免 HTML 片段外露。"""
+    if not steps:
+        return
+
+    cols = st.columns(len(steps))
     for idx, step in enumerate(steps, start=1):
-        cards_html.append(
-            (
-                '<div class="workflow-step">'
-                f'<div class="workflow-step__index">{idx:02d}</div>'
-                f'<div class="workflow-step__title">{html.escape(step["title"])}</div>'
-                f'<div class="workflow-step__desc">{html.escape(step["desc"])}</div>'
-                '</div>'
-            )
-        )
-    render_html(f'<div class="workflow-strip">{"".join(cards_html)}</div>')
+        with cols[idx - 1]:
+            with st.container(border=True):
+                st.caption(f"Step {idx:02d}")
+                st.markdown(f"**{step['title']}**")
+                st.write(step["desc"])
 
 
 def render_insight_cards(cards):
@@ -2416,18 +2331,18 @@ def render_insight_cards(cards):
 
 
 def render_model_fact_grid(facts):
-    """渲染模型/实验元信息网格"""
-    fact_html = []
-    for label, value in facts:
-        fact_html.append(
-            (
-                '<div class="model-fact">'
-                f'<div class="model-fact__label">{html.escape(str(label))}</div>'
-                f'<div class="model-fact__value">{html.escape(str(value))}</div>'
-                '</div>'
-            )
-        )
-    render_html(f'<div class="model-facts">{"".join(fact_html)}</div>')
+    """使用 Streamlit 原生组件渲染模型/实验元信息，避免 HTML 片段外露。"""
+    if not facts:
+        return
+
+    for start in range(0, len(facts), 2):
+        cols = st.columns(2)
+        for col, fact in zip(cols, facts[start:start + 2]):
+            label, value = fact
+            with col:
+                with st.container(border=True):
+                    st.caption(str(label))
+                    st.write(str(value))
 
 
 def style_plotly_figure(fig, *, height=400, show_legend=True):
