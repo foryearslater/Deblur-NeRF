@@ -13,8 +13,6 @@ import time
 import sys
 import re
 import shlex
-import html
-from textwrap import dedent
 from datetime import datetime
 from PIL import Image
 import psutil
@@ -47,7 +45,7 @@ st.set_page_config(
 )
 
 # ==================== 自定义样式 ====================
-st.markdown("""
+st.html("""
 <style>
 :root {
     --bg-1: #f5efe4;
@@ -952,7 +950,7 @@ pre {
     }
 }
 </style>
-""", unsafe_allow_html=True)
+""")
 
 # ==================== Session State 初始化 ====================
 if 'page' not in st.session_state:
@@ -2124,10 +2122,12 @@ def model_loader_page():
         tags=["场景模型", "视角浏览", "结果核验"],
     )
 
-    render_info_box(
-        "<strong>页面说明</strong><br>"
-        "这里遵循 Deblur-NeRF 原始项目的工作方式：先加载一个已经训练完成的场景模型，再选择该场景中的某个视角，查看原图与模型渲染结果。<br>"
-        "<strong>注意</strong>: 当前项目是场景级 NeRF，不做任意单张陌生图片的通用去模糊推理。"
+    render_info_box_content(
+        title="页面说明",
+        lines=[
+            "这里遵循 Deblur-NeRF 原始项目的工作方式：先加载一个已经训练完成的场景模型，再选择该场景中的某个视角，查看原图与模型渲染结果。",
+            ("注意", "当前项目是场景级 NeRF，不做任意单张陌生图片的通用去模糊推理。"),
+        ],
     )
 
     exps = get_experiments()
@@ -2256,15 +2256,15 @@ def model_loader_page():
 
         col1, col2, col3 = st.columns(3)
         with col1:
-            render_html(f'<div class="image-card-title">输入原图: {html.escape(selected_record["before_name"])}</div>')
+            render_image_card_title(f"输入原图: {selected_record['before_name']}")
             st.image(before_img, width='stretch')
         with col2:
-            render_html(f'<div class="image-card-title">训练后结果图: {html.escape(selected_record["after_name"])}</div>')
+            render_image_card_title(f"训练后结果图: {selected_record['after_name']}")
             st.image(after_img, width='stretch')
         with col3:
-            render_html('<div class="image-card-title">融合预览</div>')
+            render_image_card_title("融合预览")
             st.image(blend_img, width='stretch')
-            render_html('<div class="image-card-title">差分图</div>')
+            render_image_card_title("差分图")
             st.image(diff_img, width='stretch')
 
         st.caption(
@@ -2274,68 +2274,54 @@ def model_loader_page():
     except Exception as e:
         st.error(f"结果图展示失败: {e}")
 
-def create_param_card(param_key, param_info):
-    """创建参数信息卡片"""
-    tip = param_info.get('tips', '').replace('推荐值', '💡 推荐值')
-    return (
-        '<div class="param-card">'
-        f'<div class="param-name">{html.escape(param_info.get("desc", param_key))}</div>'
-        f'<div class="param-desc">{html.escape(param_info.get("help", ""))}</div>'
-        f'<div style="font-size: 0.85rem; color: #0066cc; margin-top: 0.3rem;">{html.escape(tip)}</div>'
-        '</div>'
-    )
 
+def render_info_box_content(title=None, lines=None, box_class="info-box"):
+    """使用原生 Streamlit 组件渲染说明框。"""
+    pieces = []
+    if title:
+        pieces.append(f"**{title}**")
 
-def render_html(markup):
-    """稳定渲染 HTML，避免缩进的多行字符串被 Markdown 当作代码块显示。"""
-    cleaned = dedent(str(markup)).strip()
-    st.markdown(cleaned, unsafe_allow_html=True)
+    for line in lines or []:
+        if isinstance(line, tuple):
+            label, value = line
+            pieces.append(f"**{label}**: {value}")
+        else:
+            pieces.append(str(line))
 
-
-def render_info_box(body_html, box_class="info-box"):
-    """渲染提示盒。body_html 由调用方控制，可包含少量安全 HTML 标签。"""
-    render_html(f'<div class="{html.escape(box_class)}">{body_html}</div>')
+    message = "\n\n".join(pieces)
+    if box_class == "success-box":
+        st.success(message)
+    elif box_class == "warning-box":
+        st.warning(message)
+    elif box_class == "error-box":
+        st.error(message)
+    else:
+        st.info(message)
 
 
 def render_quick_nav_card(icon, title, desc, meta):
-    """渲染首页快捷入口卡片"""
-    render_html(
-        (
-            '<div class="quick-nav-card">'
-            f'<div class="quick-nav-card__icon">{html.escape(icon)}</div>'
-            f'<div class="quick-nav-card__title">{html.escape(title)}</div>'
-            f'<div class="quick-nav-card__desc">{html.escape(desc)}</div>'
-            f'<div class="quick-nav-card__meta">{html.escape(meta)}</div>'
-            '</div>'
-        )
-    )
+    """渲染首页快捷入口卡片。"""
+    with st.container(border=True):
+        st.markdown(f"### {icon} {title}")
+        st.write(desc)
+        st.caption(meta)
 
 
 def render_hero_section(title, subtitle, eyebrow="Research Workspace", tags=None, compact=False):
-    """渲染统一的页面头图区域"""
-    shell_class = "hero-shell compact" if compact else "hero-shell"
-    safe_title = html.escape(title)
-    safe_subtitle = html.escape(subtitle).replace("\n", "<br>")
-    safe_eyebrow = html.escape(eyebrow)
-    tags_html = ""
-    if tags:
-        tags_html = '<div class="hero-tag-row">' + "".join(
-            f'<span class="hero-tag">{html.escape(tag)}</span>' for tag in tags
-        ) + "</div>"
-    render_html(
-        (
-            f'<section class="{shell_class}">'
-            f'<div class="hero-eyebrow">{safe_eyebrow}</div>'
-            f'<h1 class="hero-title">{safe_title}</h1>'
-            f'<p class="hero-subtitle">{safe_subtitle}</p>'
-            f'{tags_html}'
-            '</section>'
-        )
-    )
+    """渲染统一的页面头部区域。"""
+    with st.container(border=True):
+        st.caption(eyebrow)
+        if compact:
+            st.markdown(f"## {title}")
+        else:
+            st.markdown(f"# {title}")
+        st.write(subtitle)
+        if tags:
+            st.caption(" | ".join(tags))
 
 
 def render_section_intro(title, subtitle, tags=None):
-    """渲染统一的功能页标题区"""
+    """渲染统一的功能页标题区。"""
     render_hero_section(
         title=title,
         subtitle=subtitle,
@@ -2346,63 +2332,64 @@ def render_section_intro(title, subtitle, tags=None):
 
 
 def render_subsection_title(title):
-    """渲染二级功能标题"""
-    render_html(f'<h3 class="subsection-header">{html.escape(title)}</h3>')
+    """渲染二级功能标题。"""
+    st.markdown(f"### {title}")
 
 
-def render_soft_panel(content_html):
-    """渲染轻量说明面板"""
-    render_html(f'<div class="soft-panel">{content_html}</div>')
+def render_soft_panel_text(text):
+    """渲染轻量说明面板。"""
+    with st.container(border=True):
+        st.write(str(text))
 
 
 def render_empty_state(title, body, hint=None):
-    """渲染统一空状态提示"""
-    hint_html = f'<div class="empty-state__hint">{html.escape(hint)}</div>' if hint else ""
-    render_html(
-        (
-            '<div class="empty-state">'
-            f'<div class="empty-state__title">{html.escape(title)}</div>'
-            f'<div class="empty-state__body">{html.escape(body)}</div>'
-            f'{hint_html}'
-            '</div>'
-        )
-    )
+    """渲染统一空状态提示。"""
+    with st.container(border=True):
+        st.markdown(f"**{title}**")
+        st.write(str(body))
+        if hint:
+            st.caption(str(hint))
+
+
+def render_status_pill(text, *, warning=False):
+    """渲染状态提示。"""
+    if warning:
+        st.warning(str(text))
+    else:
+        st.success(str(text))
+
+
+def render_image_card_title(title):
+    """渲染媒体卡片标题。"""
+    st.markdown(f"**{title}**")
 
 
 def render_workflow_strip(steps):
-    """渲染首页研究流程。"""
+    """使用 Streamlit 原生组件渲染首页研究流程。"""
     if not steps:
         return
 
-    steps_html = []
+    cols = st.columns(len(steps))
     for idx, step in enumerate(steps, start=1):
-        steps_html.append(
-            (
-                '<div class="workflow-step">'
-                f'<div class="workflow-step__index">{idx:02d}</div>'
-                f'<div class="workflow-step__title">{html.escape(step["title"])}</div>'
-                f'<div class="workflow-step__desc">{html.escape(step["desc"])}</div>'
-                '</div>'
-            )
-        )
-
-    render_html(f'<div class="workflow-strip">{"".join(steps_html)}</div>')
+        with cols[idx - 1]:
+            with st.container(border=True):
+                st.caption(f"Step {idx:02d}")
+                st.markdown(f"**{step['title']}**")
+                st.write(step["desc"])
 
 
 def render_insight_cards(cards):
-    """渲染说明型信息卡片"""
-    cards_html = []
-    for card in cards:
-        cards_html.append(
-            (
-                '<div class="insight-card">'
-                f'<div class="insight-card__kicker">{html.escape(card["kicker"])}</div>'
-                f'<div class="insight-card__title">{html.escape(card["title"])}</div>'
-                f'<div class="insight-card__body">{html.escape(card["body"])}</div>'
-                '</div>'
-            )
-        )
-    render_html(f'<div class="insight-grid">{"".join(cards_html)}</div>')
+    """渲染说明型信息卡片。"""
+    if not cards:
+        return
+
+    cols = st.columns(min(3, len(cards)))
+    for idx, card in enumerate(cards):
+        with cols[idx % len(cols)]:
+            with st.container(border=True):
+                st.caption(card["kicker"])
+                st.markdown(f"**{card['title']}**")
+                st.write(card["body"])
 
 
 def render_model_fact_grid(facts):
@@ -2571,7 +2558,7 @@ def home_page():
     
     # 提示
     render_subsection_title("💡 使用建议")
-    render_soft_panel("<p>推荐流程：先建立配置基线，再启动训练，随后在模型与推理模块核查可视结果，最后进入分析页汇总定量指标。若 GPU 显存吃紧，优先降低 N_rand 与 chunk。</p>")
+    render_soft_panel_text("推荐流程：先建立配置基线，再启动训练，随后在模型与推理模块核查可视结果，最后进入分析页汇总定量指标。若 GPU 显存吃紧，优先降低 N_rand 与 chunk。")
     render_insight_cards([
         {
             "kicker": "First Run",
@@ -2610,7 +2597,10 @@ def config_page():
     with tab1:
         render_subsection_title("配置预设")
         
-        render_info_box("<strong>选择预设方创建配置</strong><br>这些预设已经根据常见场景和硬件配置优化过参数。")
+        render_info_box_content(
+            title="选择预设方创建配置",
+            lines=["这些预设已经根据常见场景和硬件配置优化过参数。"],
+        )
         
         cols = st.columns(2)
         for idx, (preset_name, preset_params) in enumerate(PRESET_CONFIGS.items()):
@@ -3168,14 +3158,14 @@ def training_page():
                 
                 box_class = "success-box" if status["is_running_hint"] else "warning-box"
                 target_iters_text = status["target_iters"] if status["target_iters"] > 0 else "未知"
-                render_info_box(
-                    (
-                        f'<strong>{html.escape(status["label"])}</strong><br>'
-                        f'{html.escape(status["detail"])}<br>'
-                        f'当前迭代: {status["latest_iter"]}/{target_iters_text}<br>'
-                        f'检查点数: {stats["ckpt_count"]}<br>'
-                        f'输出图像数: {stats["images_count"]}'
-                    ),
+                render_info_box_content(
+                    title=status["label"],
+                    lines=[
+                        status["detail"],
+                        ("当前迭代", f"{status['latest_iter']}/{target_iters_text}"),
+                        ("检查点数", stats["ckpt_count"]),
+                        ("输出图像数", stats["images_count"]),
+                    ],
                     box_class=box_class,
                 )
     
@@ -3418,7 +3408,7 @@ def inference_page():
                     "运行测试集渲染或生成视频",
                 )
             if images:
-                render_html(f'<span class="status-pill">找到 {len(images)} 张结果图像</span>')
+                render_status_pill(f"找到 {len(images)} 张结果图像")
                 
                 # 图像网格显示
                 cols = st.columns(3)
@@ -3426,7 +3416,7 @@ def inference_page():
                     with cols[idx % 3]:
                         try:
                             img = Image.open(img_path)
-                            render_html(f'<div class="image-card-title">{html.escape(img_path.name)}</div>')
+                            render_image_card_title(img_path.name)
                             st.image(img, width='stretch')
                         except Exception as e:
                             st.error(f"加载失败: {img_path.name}")
@@ -3440,16 +3430,16 @@ def inference_page():
                             with cols[(idx+9) % 3]:
                                 try:
                                     img = Image.open(img_path)
-                                    render_html(f'<div class="image-card-title">{html.escape(img_path.name)}</div>')
+                                    render_image_card_title(img_path.name)
                                     st.image(img, width='stretch')
                                 except Exception as e:
                                     st.error(f"加载失败: {img_path.name}")
 
             if videos:
                 st.divider()
-                render_html(f'<span class="status-pill">找到 {len(videos)} 个结果视频</span>')
+                render_status_pill(f"找到 {len(videos)} 个结果视频")
                 for video_path in videos[:4]:
-                    render_html(f'<div class="image-card-title">{html.escape(video_path.name)}</div>')
+                    render_image_card_title(video_path.name)
                     st.video(str(video_path))
                     st.caption(f"路径: `{video_path}`")
 
@@ -3478,11 +3468,13 @@ def inference_page():
     else:
         render_subsection_title("质量指标分析")
         
-        render_info_box(
-            "<strong>图像质量评估指标</strong><br>"
-            "• <strong>PSNR</strong>: 峰值信噪比，值越高越好<br>"
-            "• <strong>SSIM</strong>: 结构相似度，范围0-1，越接近1越好<br>"
-            "• <strong>LPIPS</strong>: 感知损失，值越低越好"
+        render_info_box_content(
+            title="图像质量评估指标",
+            lines=[
+                ("PSNR", "峰值信噪比，值越高越好"),
+                ("SSIM", "结构相似度，范围 0-1，越接近 1 越好"),
+                ("LPIPS", "感知损失，值越低越好"),
+            ],
         )
         
         exps = get_experiments()
@@ -3586,7 +3578,7 @@ def analysis_page():
                     
                     col1, col2 = st.columns(2)
                     with col1:
-                        render_html(f'<div class="image-card-title">{html.escape(get_experiment_display_name(exp1))}</div>')
+                        render_image_card_title(get_experiment_display_name(exp1))
                         try:
                             img1 = Image.open(images1[img_idx])
                             st.image(img1, width='stretch')
@@ -3594,7 +3586,7 @@ def analysis_page():
                             st.error("图像加载失败")
                     
                     with col2:
-                        render_html(f'<div class="image-card-title">{html.escape(get_experiment_display_name(exp2))}</div>')
+                        render_image_card_title(get_experiment_display_name(exp2))
                         try:
                             img2 = Image.open(images2[img_idx])
                             st.image(img2, width='stretch')
@@ -3679,15 +3671,10 @@ def main():
         st.session_state.page_sync_pending = False
 
     with st.sidebar:
-        render_html(
-            (
-                '<div class="sidebar-brand">'
-                '<div class="sidebar-brand__eyebrow">Research Console</div>'
-                f'<div class="sidebar-brand__title">{html.escape(PROJECT_TITLE)}</div>'
-                '<div class="sidebar-brand__meta">配置、训练、推理、模型查看与实验分析的一体化可视化工作台</div>'
-                '</div>'
-            )
-        )
+        with st.container(border=True):
+            st.caption("Research Console")
+            st.markdown(f"**{PROJECT_TITLE}**")
+            st.write("配置、训练、推理、模型查看与实验分析的一体化可视化工作台")
         st.divider()
         
         st.markdown("### 📌 导航菜单")
