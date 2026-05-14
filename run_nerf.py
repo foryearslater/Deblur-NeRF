@@ -177,6 +177,14 @@ def config_parser():
                         help='downsampling factor to speed up rendering, set 4 or 8 for fast preview')
     parser.add_argument("--render_epi", action='store_true',
                         help='render the video with epi path')
+    parser.add_argument("--render_single_deblur", action='store_true',
+                        help='render one dataset view specified by final_deblur_idx into final_deblur/')
+    parser.add_argument("--final_deblur_idx", type=int, default=0,
+                        help='image index used for the final single-view deblurred preview after training')
+    parser.add_argument("--final_deblur_factor", type=int, default=0,
+                        help='downsampling factor for final single-view preview; 0 keeps the training image resolution')
+    parser.add_argument("--no_final_deblur", action='store_true',
+                        help='skip saving the final single-view deblurred preview after training')
 
     ## llff flags
     parser.add_argument("--factor", type=int, default=None,
@@ -223,6 +231,73 @@ def config_parser():
                         help='frequency of render_poses video saving')
 
     return parser
+
+
+def save_final_deblur_preview(nerf, H, W, K, chunk, poses, images, render_kwargs_test,
+                              basedir, expname, image_idx, final_iter,
+                              render_factor=0, effective_num_gpu=1):
+    if len(poses) == 0:
+        print('[WARN] No poses found, skip final deblur preview.')
+        return None
+
+    requested_idx = int(image_idx)
+    image_idx = max(0, min(requested_idx, len(poses) - 1))
+    if image_idx != requested_idx:
+        print(f"[WARN] final_deblur_idx={requested_idx} is out of range, using {image_idx}.")
+
+    render_factor = max(0, int(render_factor))
+    savedir = os.path.join(basedir, expname, 'final_deblur')
+    os.makedirs(savedir, exist_ok=True)
+
+    preview_pose = poses[image_idx:image_idx + 1]
+    dummy_num = ((len(preview_pose) - 1) // effective_num_gpu + 1) * effective_num_gpu - len(preview_pose)
+    dummy_poses = torch.eye(3, 4).unsqueeze(0).expand(dummy_num, 3, 4).type_as(preview_pose)
+    render_poses = torch.cat([preview_pose, dummy_poses], dim=0)
+
+    with torch.no_grad():
+        nerf.eval()
+        rgbs, _ = nerf(
+            H, W, K, chunk,
+            poses=render_poses,
+            render_kwargs=render_kwargs_test,
+            render_factor=render_factor,
+        )
+
+    rgb8 = to8b(rgbs[0].detach().cpu().numpy())
+
+    input_img = images[image_idx]
+    if torch.is_tensor(input_img):
+        input_img = input_img.detach().cpu().numpy()
+    input8 = to8b(input_img)
+
+    compare_input = input8
+    if compare_input.shape[:2] != rgb8.shape[:2]:
+        compare_input = cv2.resize(
+            compare_input,
+            (rgb8.shape[1], rgb8.shape[0]),
+            interpolation=cv2.INTER_AREA,
+        )
+
+    compare8 = np.concatenate([compare_input, rgb8], axis=1)
+
+    result_path = os.path.join(savedir, f'{image_idx:03d}.png')
+    input_path = os.path.join(savedir, f'input_{image_idx:03d}.png')
+    compare_path = os.path.join(savedir, f'compare_{image_idx:03d}.png')
+    meta_path = os.path.join(savedir, 'latest.txt')
+
+    imageio.imwrite(result_path, rgb8)
+    imageio.imwrite(input_path, input8)
+    imageio.imwrite(compare_path, compare8)
+    with open(meta_path, 'w') as file:
+        file.write(f"image_index = {image_idx}\n")
+        file.write(f"final_iter = {final_iter}\n")
+        file.write(f"render_factor = {render_factor}\n")
+        file.write(f"deblurred = {result_path}\n")
+        file.write(f"input = {input_path}\n")
+        file.write(f"compare = {compare_path}\n")
+
+    print(f"Saved final deblur preview for image {image_idx} at {result_path}")
+    return result_path
 
 
 def train():
@@ -411,6 +486,17 @@ def train():
     # Short circuit if only rendering out from trained model
     if args.render_only:
         print('RENDER ONLY')
+        if args.render_single_deblur:
+            pose_tensor = torch.tensor(poses[:, :3, :4]).to(DEVICE)
+            save_final_deblur_preview(
+                nerf, hwf[0], hwf[1], K, args.chunk,
+                pose_tensor, images, render_kwargs_test,
+                basedir, expname, args.final_deblur_idx, start,
+                render_factor=args.final_deblur_factor,
+                effective_num_gpu=effective_num_gpu,
+            )
+            return
+
         with torch.no_grad():
             testsavedir = os.path.join(basedir, expname,
                                        f"renderonly"

@@ -1428,6 +1428,66 @@ def build_inference_command(exp_name, render_mode, render_factor=4, num_gpus=1):
     return command, None
 
 
+def build_single_deblur_command(exp_name, image_idx, render_factor=0, num_gpus=1):
+    """构建指定场景视角的单张去模糊推理命令"""
+    config_path = get_experiment_config_path(exp_name)
+    if config_path is None:
+        return None, "未找到可用于重新渲染的 config.txt 或 args.txt，无法自动发起单张去模糊。"
+
+    command = [
+        sys.executable, "run_nerf.py",
+        "--config", str(config_path),
+        "--render_only",
+        "--render_single_deblur",
+        "--final_deblur_idx", str(int(image_idx)),
+        "--final_deblur_factor", str(int(render_factor)),
+        "--num_gpu", str(int(num_gpus)),
+    ]
+    return command, None
+
+
+def get_single_deblur_paths(exp_name, image_idx):
+    """返回单张去模糊输出路径集合"""
+    idx = int(image_idx)
+    output_dir = get_experiment_dir(exp_name) / "final_deblur"
+    return {
+        "dir": output_dir,
+        "result": output_dir / f"{idx:03d}.png",
+        "input": output_dir / f"input_{idx:03d}.png",
+        "compare": output_dir / f"compare_{idx:03d}.png",
+        "meta": output_dir / "latest.txt",
+    }
+
+
+def has_model_checkpoint(exp_name):
+    """判断实验是否已有可加载的模型检查点"""
+    exp_dir = get_experiment_dir(exp_name)
+    if not exp_dir.exists():
+        return False
+    try:
+        return any(exp_dir.glob("*.tar"))
+    except Exception:
+        return False
+
+
+def run_single_deblur_command(command_args, log_path):
+    """前台执行单张去模糊，便于 UI 在完成后直接展示结果"""
+    log_path = Path(log_path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(log_path, "a", buffering=1) as log_file:
+        log_file.write(
+            f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+            f"Launching: {_format_shell_command(command_args)}\n"
+        )
+        return subprocess.run(
+            command_args,
+            cwd=os.getcwd(),
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+
+
 def validate_config(config_data):
     """验证配置参数"""
     warnings = []
@@ -1977,6 +2037,20 @@ def list_result_images(exp_name):
     return images
 
 
+def build_source_image_records(exp_name):
+    """构建可供单张去模糊选择的原始图像记录"""
+    source_images = list_source_images_by_exp(exp_name)
+    records = []
+    for idx, image_path in enumerate(source_images):
+        records.append({
+            "index": idx,
+            "path": image_path,
+            "name": image_path.name,
+            "label": f"{idx:03d} | {image_path.name}",
+        })
+    return records
+
+
 def list_result_videos(exp_name):
     """返回实验可视化结果视频（优先 render_only 路径渲染，其次训练期间导出视频）"""
     exp_dir = get_experiment_dir(exp_name)
@@ -2197,6 +2271,157 @@ def model_loader_page():
     if active_model != selected_exp:
         st.info("当前结果区域仍使用“已加载模型”。如果你想切换到新选择的实验，请点击上方“加载这个模型”。")
 
+    active_widget_key = get_experiment_widget_key(active_model)
+    active_args_data = get_experiment_args(active_model)
+    active_stats = get_experiment_stats(active_model) or {}
+    active_has_ckpt = has_model_checkpoint(active_model)
+    source_records = build_source_image_records(active_model)
+    if not source_records:
+        render_empty_state(
+            "未找到可处理原图",
+            "单张去模糊需要该实验 args.txt 中的 datadir/factor 能定位到 LLFF images 或 images_factor 目录。",
+            "检查实验配置的数据路径",
+        )
+        return
+
+    st.divider()
+    st.markdown("### 单张图像去模糊")
+    st.caption("选择当前已加载模型对应数据集中的一张原图，再调用该模型渲染这个视角的清晰结果图。")
+    render_info_box_content(
+        title="工作方式",
+        lines=[
+            "该功能使用训练好的场景模型和所选图片的相机位姿生成新结果图。",
+            ("适用范围", "请选择当前模型训练数据集里的图片；任意上传的陌生图片没有对应位姿，不能直接用 Deblur-NeRF 稳定处理。"),
+        ],
+    )
+    if not active_has_ckpt:
+        st.warning("当前实验还没有检测到 `.tar` 模型检查点。请先完成训练或保存检查点，再生成单张去模糊结果。")
+
+    col_select, col_settings = st.columns([2, 1])
+    with col_select:
+        selected_source = st.selectbox(
+            "选择待处理原图",
+            source_records,
+            format_func=lambda record: record["label"],
+            key=f"single_deblur_source_{active_widget_key}",
+        )
+    with col_settings:
+        single_render_factor = st.select_slider(
+            "输出降采样因子",
+            options=[0, 1, 2, 4, 8],
+            value=0,
+            help="0 表示按当前数据分辨率输出；数值越大速度越快、分辨率越低。",
+            key=f"single_deblur_factor_{active_widget_key}",
+        )
+        single_num_gpus = st.slider(
+            "GPU并行数",
+            1,
+            8,
+            1,
+            help="映射到 `run_nerf.py --num_gpu`。",
+            key=f"single_deblur_gpus_{active_widget_key}",
+        )
+
+    single_paths = get_single_deblur_paths(active_model, selected_source["index"])
+    with st.container(border=True):
+        st.markdown("### 当前处理任务")
+        render_model_fact_grid([
+            ("场景模型", get_experiment_display_name(active_model)),
+            ("数据集目录", active_args_data.get("datadir", "N/A")),
+            ("待处理原图", selected_source["name"]),
+            ("图像索引", selected_source["index"]),
+            ("检查点数量", active_stats.get("ckpt_count", 0)),
+            ("输出目录", single_paths["dir"]),
+        ])
+
+        if st.button(
+            "生成去模糊结果图",
+            width='stretch',
+            key=f"run_single_deblur_{active_widget_key}",
+            disabled=not active_has_ckpt,
+        ):
+            command_args, error_message = build_single_deblur_command(
+                exp_name=active_model,
+                image_idx=selected_source["index"],
+                render_factor=single_render_factor,
+                num_gpus=single_num_gpus,
+            )
+            if error_message:
+                st.error(f"❌ {error_message}")
+            else:
+                log_path = get_experiment_dir(active_model) / "single_deblur.log"
+                with st.spinner("模型正在生成新的去模糊结果图..."):
+                    completed = run_single_deblur_command(command_args, log_path)
+
+                if completed.returncode == 0 and single_paths["result"].exists():
+                    st.success(f"已生成结果图：{single_paths['result']}")
+                else:
+                    st.error(f"单张去模糊执行失败，请查看日志：{log_path}")
+                st.code(_format_shell_command(command_args), language="bash")
+
+    st.markdown("### 新生成结果图")
+    try:
+        input_preview = Image.open(selected_source["path"]).convert("RGB")
+        if single_paths["result"].exists():
+            result_preview = Image.open(single_paths["result"]).convert("RGB")
+            compare_preview = Image.open(single_paths["compare"]).convert("RGB") if single_paths["compare"].exists() else None
+
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                render_image_card_title(f"输入原图: {selected_source['name']}")
+                st.image(input_preview, width='stretch')
+            with col2:
+                render_image_card_title(f"去模糊结果: {single_paths['result'].name}")
+                st.image(result_preview, width='stretch')
+                with open(single_paths["result"], "rb") as result_file:
+                    st.download_button(
+                        "下载结果图",
+                        data=result_file,
+                        file_name=single_paths["result"].name,
+                        mime="image/png",
+                        width='stretch',
+                        key=f"download_single_deblur_{active_widget_key}_{selected_source['index']}",
+                    )
+            with col3:
+                if compare_preview is not None:
+                    render_image_card_title("左右对比图")
+                    st.image(compare_preview, width='stretch')
+                    with open(single_paths["compare"], "rb") as compare_file:
+                        st.download_button(
+                            "下载对比图",
+                            data=compare_file,
+                            file_name=single_paths["compare"].name,
+                            mime="image/png",
+                            width='stretch',
+                            key=f"download_single_compare_{active_widget_key}_{selected_source['index']}",
+                        )
+                else:
+                    render_image_card_title("结果路径")
+                    st.caption(single_paths["result"])
+            st.caption(
+                f"结果图路径: {single_paths['result']} | "
+                f"输入备份: {single_paths['input']} | "
+                f"对比图: {single_paths['compare']}"
+            )
+        else:
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                render_image_card_title(f"输入原图: {selected_source['name']}")
+                st.image(input_preview, width='stretch')
+            with col2:
+                if active_has_ckpt:
+                    render_empty_state(
+                        "尚未生成该图结果",
+                        "点击上方“生成去模糊结果图”后，这里会显示模型输出的新图片。",
+                    )
+                else:
+                    render_empty_state(
+                        "模型尚不可推理",
+                        "检测到训练检查点后，这里会允许生成当前图片的去模糊结果。",
+                    )
+    except Exception as e:
+        st.error(f"单张结果展示失败: {e}")
+
     pair_records, before_images, after_images = build_image_pair_records(active_model)
     if not pair_records:
         if not before_images:
@@ -2207,9 +2432,9 @@ def model_loader_page():
             )
         elif not after_images:
             render_empty_state(
-                "未找到渲染结果图",
-                "模型已可选择，但尚未检测到 testset 或 renderonly 输出图像。",
-                "先在推理页执行测试集渲染",
+                "暂无批量渲染结果图",
+                "上方可以先生成单张去模糊结果；若要逐视角浏览整组结果，请在推理页执行测试集渲染。",
+                "生成测试集渲染后这里会自动出现历史对比",
             )
         else:
             render_empty_state(
@@ -2220,9 +2445,8 @@ def model_loader_page():
         return
 
     st.divider()
-    st.markdown("### 选择场景视角")
+    st.markdown("### 已有结果视角浏览")
 
-    active_widget_key = get_experiment_widget_key(active_model)
     selected_idx = st.slider(
         "选择视角索引",
         min_value=0,
