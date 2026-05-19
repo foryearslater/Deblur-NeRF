@@ -949,6 +949,599 @@ pre {
         grid-template-columns: 1fr;
     }
 }
+
+/* ==================== 学术海报风升级层 ==================== */
+.hero-shell {
+    padding: 2.65rem 2.7rem 2.45rem;
+    border-radius: 30px;
+    background:
+        radial-gradient(circle at 86% -10%, rgba(255,255,255,0.32), transparent 36%),
+        radial-gradient(circle at -8% 120%, rgba(216,139,45,0.4), transparent 38%),
+        linear-gradient(132deg, #103b5f 0%, #15527a 42%, #1b6781 70%, #c87a2a 130%);
+    box-shadow:
+        0 28px 56px rgba(15, 39, 66, 0.22),
+        inset 0 1px 0 rgba(255,255,255,0.18);
+}
+
+.hero-shell::before {
+    inset: -3.5rem auto auto -3.5rem;
+    width: 11rem;
+    height: 11rem;
+    background:
+        repeating-linear-gradient(135deg, rgba(255,255,255,0.06) 0 2px, transparent 2px 12px);
+    border-radius: 0;
+    transform: rotate(-12deg);
+    opacity: 0.55;
+}
+
+.hero-shell::after {
+    inset: auto -3rem -3.5rem auto;
+    width: 14rem;
+    height: 14rem;
+    background:
+        radial-gradient(circle, rgba(255,255,255,0.22) 0 28%, transparent 29%),
+        radial-gradient(circle, rgba(255,255,255,0.1), transparent 60%);
+    filter: blur(0.3px);
+}
+
+.hero-eyebrow {
+    padding: 0.46rem 0.85rem 0.46rem 0.4rem;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.24);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
+}
+
+.hero-eyebrow::before {
+    content: "";
+    display: inline-block;
+    width: 1.4rem;
+    height: 2px;
+    background: #ffd089;
+    border-radius: 999px;
+    margin-right: 0.5rem;
+    vertical-align: 0.22rem;
+}
+
+.hero-title {
+    font-feature-settings: "ss01", "ss02";
+    text-wrap: balance;
+}
+
+.hero-subtitle {
+    color: rgba(255,255,255,0.92);
+}
+
+.hero-meta-row {
+    position: relative;
+    z-index: 1;
+    margin-top: 1.4rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.7rem;
+}
+
+.hero-meta-chip {
+    padding: 0.7rem 0.85rem;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.18);
+    backdrop-filter: blur(14px);
+    color: #ffffff;
+}
+
+.hero-meta-chip__label {
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.7);
+    font-weight: 700;
+}
+
+.hero-meta-chip__value {
+    margin-top: 0.18rem;
+    font-size: 1.18rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.01em;
+}
+
+/* 分节副标题加上序号缩进感 */
+.subsection-header {
+    margin: 0.9rem 0 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.72rem;
+    font-size: 1.28rem;
+    font-weight: 850;
+    color: var(--ink-900);
+    letter-spacing: -0.005em;
+}
+
+.subsection-header::before {
+    content: "";
+    width: 0.5rem;
+    height: 1.3rem;
+    border-radius: 4px;
+    background: linear-gradient(180deg, var(--accent), var(--brand));
+    box-shadow: 0 6px 18px rgba(216,139,45,0.32);
+}
+
+.subsection-header::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(16,38,63,0.12), transparent 80%);
+}
+
+/* 流程步骤 - 连接线 */
+.workflow-strip {
+    position: relative;
+    margin: 0.4rem 0 1.7rem;
+}
+
+.workflow-step {
+    padding: 1.15rem 1.05rem 1.2rem;
+    border-radius: 22px;
+    min-height: 168px;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(15,97,125,0.1), transparent 40%),
+        linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,251,253,0.86));
+    border: 1px solid rgba(16,38,63,0.08);
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.workflow-step:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 32px rgba(17,35,56,0.12);
+}
+
+.workflow-step__index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: 14px;
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 0.85rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--brand-deep), var(--brand) 60%, var(--accent));
+    color: #ffffff;
+    box-shadow: 0 10px 22px rgba(15,97,125,0.28);
+}
+
+.workflow-step__title {
+    margin-top: 0.85rem;
+    font-size: 1.05rem;
+}
+
+/* 快捷导航卡 - 海报风升级 */
+.quick-nav-card {
+    min-height: 198px;
+    padding: 1.2rem 1.15rem;
+    border-radius: 26px;
+    background:
+        radial-gradient(circle at 0% 0%, rgba(216,139,45,0.18), transparent 38%),
+        linear-gradient(180deg, rgba(255,255,255,0.97), rgba(247,250,252,0.86));
+    border: 1px solid rgba(16,38,63,0.08);
+}
+
+.quick-nav-card::before {
+    content: "";
+    position: absolute;
+    left: 1.1rem;
+    top: 1.1rem;
+    width: 2.65rem;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent), var(--brand));
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.quick-nav-card:hover::before {
+    opacity: 0.85;
+}
+
+.quick-nav-card__icon {
+    width: 2.95rem;
+    height: 2.95rem;
+    border-radius: 18px;
+    font-size: 1.55rem;
+    background:
+        linear-gradient(135deg, rgba(15,97,125,0.15), rgba(216,139,45,0.22)),
+        rgba(255,255,255,0.6);
+    border: 1px solid rgba(15,97,125,0.16);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+}
+
+.quick-nav-card__title {
+    margin-top: 0.85rem;
+    font-size: 1.06rem;
+}
+
+.quick-nav-card__desc {
+    margin-top: 0.35rem;
+    min-height: 4.4rem;
+}
+
+.quick-nav-card__meta {
+    margin-top: 0.6rem;
+    color: var(--brand);
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+}
+
+/* Insight 卡片 - 论文配图风 */
+.insight-card {
+    padding: 1.3rem 1.25rem 1.35rem;
+    border-radius: 26px;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(216,139,45,0.16), transparent 40%),
+        linear-gradient(180deg, rgba(255,255,255,0.97), rgba(247,250,252,0.86));
+}
+
+.insight-card::after {
+    content: "";
+    position: absolute;
+    left: 1.2rem;
+    bottom: 1rem;
+    width: 2.6rem;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent), var(--brand));
+}
+
+.insight-card__title {
+    font-size: 1.08rem;
+}
+
+.insight-card__body {
+    padding-bottom: 1rem;
+}
+
+/* 空状态 - 学术风 */
+.empty-state {
+    padding: 1.4rem 1.5rem;
+    border-radius: 26px;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(15,97,125,0.14), transparent 38%),
+        linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,251,0.9));
+    border: 1px dashed rgba(15,97,125,0.36);
+}
+
+.empty-state__title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 1.1rem;
+}
+
+.empty-state__title::before {
+    content: "✦";
+    color: var(--accent);
+    font-size: 1.15rem;
+}
+
+.empty-state__hint {
+    margin-top: 0.9rem;
+    padding: 0.42rem 0.85rem;
+    background: linear-gradient(135deg, rgba(15,97,125,0.1), rgba(216,139,45,0.16));
+    border: 1px solid rgba(15,97,125,0.12);
+    color: var(--brand-deep);
+}
+
+/* 卡片化的 Streamlit container - 加强材质 */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(247,250,252,0.88));
+    border: 1px solid rgba(16,38,63,0.09);
+    box-shadow: 0 16px 36px rgba(17,35,56,0.08);
+    padding: 0.25rem;
+    transition: box-shadow 0.22s ease;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    box-shadow: 0 22px 44px rgba(17,35,56,0.12);
+}
+
+/* Metric 卡片 - 加上顶部彩条 */
+div[data-testid="stMetric"] {
+    position: relative;
+    overflow: hidden;
+    padding: 0.85rem 0.95rem;
+    border-radius: 20px;
+}
+
+div[data-testid="stMetric"]::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--brand) 0%, var(--accent) 100%);
+    opacity: 0.78;
+}
+
+div[data-testid="stMetricValue"] {
+    font-feature-settings: "tnum";
+    font-weight: 800;
+    letter-spacing: -0.015em;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stMetric"]::before {
+    background: linear-gradient(90deg, rgba(255,255,255,0.6), rgba(216,139,45,0.7));
+    opacity: 0.6;
+}
+
+/* 按钮 - 海报风升级 */
+div.stButton > button {
+    border-radius: 16px;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.98), rgba(244,248,250,0.94));
+    border: 1px solid rgba(16,38,63,0.12);
+    box-shadow:
+        var(--shadow-sm),
+        inset 0 1px 0 rgba(255,255,255,0.7);
+    letter-spacing: 0.01em;
+}
+
+div.stButton > button:hover {
+    background:
+        linear-gradient(180deg, #ffffff, #f0f6f9);
+    border-color: rgba(15,97,125,0.36);
+    box-shadow:
+        0 16px 32px rgba(15,97,125,0.18),
+        inset 0 1px 0 rgba(255,255,255,0.9);
+}
+
+div.stButton > button:active {
+    transform: translateY(0);
+}
+
+div.stButton > button:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 3px;
+}
+
+/* primary 按钮强调 */
+button[kind="primary"] {
+    background: linear-gradient(135deg, var(--brand-deep), var(--brand) 60%, var(--accent)) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255,255,255,0.18) !important;
+    box-shadow:
+        0 16px 36px rgba(15,97,125,0.26),
+        inset 0 1px 0 rgba(255,255,255,0.2) !important;
+}
+
+/* Tab 列表 - 玻璃感 */
+div[data-baseweb="tab-list"] {
+    background: linear-gradient(180deg, rgba(255,255,255,0.86), rgba(245,249,251,0.62));
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(16,38,63,0.1);
+}
+
+button[data-baseweb="tab"][aria-selected="true"] {
+    box-shadow: 0 12px 26px rgba(15,97,125,0.28);
+}
+
+/* Sidebar - 学术 console 感 */
+section[data-testid="stSidebar"] {
+    background:
+        radial-gradient(circle at 100% -10%, rgba(216,139,45,0.18), transparent 26%),
+        radial-gradient(circle at -10% 100%, rgba(15,97,125,0.3), transparent 30%),
+        linear-gradient(180deg, #15314e 0%, #0c1d2f 100%);
+}
+
+section[data-testid="stSidebar"] .stMarkdown h3 {
+    color: #ffffff;
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin: 1.1rem 0 0.6rem;
+    opacity: 0.88;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"] {
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.04));
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 18px 36px rgba(0,0,0,0.28);
+    border-radius: 20px;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    box-shadow: 0 20px 40px rgba(0,0,0,0.36);
+}
+
+/* Sidebar 导航 radio */
+section[data-testid="stSidebar"] div[role="radiogroup"] label {
+    padding: 0.55rem 0.85rem;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(238, 245, 255, 0.88);
+    transition: all 0.18s ease;
+}
+
+section[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(216,139,45,0.5);
+    color: #ffffff;
+}
+
+/* 选中态：streamlit radio 用 [data-baseweb] 不暴露，但 input:checked 父级有 aria */
+
+/* 进度条 - 双色渐变 */
+div[data-testid="stProgress"] > div > div > div {
+    background: linear-gradient(90deg, var(--brand), var(--accent));
+    box-shadow: 0 0 0 1px rgba(15,97,125,0.16);
+    border-radius: 999px;
+}
+
+/* Plotly chart 容器 */
+div[data-testid="stPlotlyChart"] {
+    border-radius: 22px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.86);
+    border: 1px solid rgba(16,38,63,0.08);
+    box-shadow: var(--shadow-md);
+    padding: 0.4rem 0.4rem 0.1rem;
+}
+
+/* Dataframe / table */
+div[data-testid="stDataFrame"] {
+    background: rgba(255,255,255,0.88);
+    border: 1px solid rgba(16,38,63,0.1);
+    box-shadow: var(--shadow-sm);
+}
+
+/* code block - 学术感 */
+.stCodeBlock {
+    border-radius: 18px !important;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+/* Caption 字体节奏 */
+.stCaption, [data-testid="stCaptionContainer"] p {
+    color: var(--ink-500);
+    font-size: 0.86rem;
+    letter-spacing: 0.01em;
+}
+
+/* hero 内字色覆盖（避免被 stMarkdown 颜色覆盖） */
+.hero-shell h1, .hero-shell h2, .hero-shell p, .hero-shell span {
+    color: #ffffff !important;
+}
+
+/* hero compact 字号微调 */
+.hero-shell.compact {
+    padding: 1.85rem 2.05rem 1.75rem;
+}
+
+.hero-shell.compact .hero-title {
+    font-size: 2rem;
+}
+
+.hero-shell.compact .hero-subtitle {
+    font-size: 0.99rem;
+    color: rgba(255,255,255,0.92);
+}
+
+/* 全局滚动条美化 */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(16,38,63,0.04);
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(15,97,125,0.5), rgba(15,97,125,0.32));
+    border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, var(--brand), var(--accent));
+}
+
+/* fact grid 信息卡片 */
+.fact-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.75rem;
+    margin: 0.25rem 0 0.5rem;
+}
+
+.fact-cell {
+    position: relative;
+    padding: 0.85rem 0.95rem;
+    border-radius: 18px;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.86));
+    border: 1px solid rgba(16,38,63,0.09);
+    box-shadow: var(--shadow-sm);
+}
+
+.fact-cell__label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-500);
+}
+
+.fact-cell__value {
+    margin-top: 0.32rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ink-900);
+    word-break: break-all;
+    line-height: 1.55;
+}
+
+/* 状态徽标 */
+.status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.42rem 0.85rem;
+    border-radius: 999px;
+    background: rgba(31,122,92,0.12);
+    color: var(--success-color);
+    font-size: 0.84rem;
+    font-weight: 800;
+    border: 1px solid rgba(31,122,92,0.22);
+}
+
+.status-chip.warning {
+    background: rgba(185,119,32,0.14);
+    color: var(--warning-color);
+    border-color: rgba(185,119,32,0.26);
+}
+
+.status-chip::before {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: currentColor;
+    box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 18%, transparent);
+}
+
+/* 图像/视频 hover */
+div[data-testid="stImage"] {
+    transition: transform 0.22s ease;
+}
+
+div[data-testid="stImage"]:hover {
+    transform: translateY(-2px);
+}
+
+/* 段落与列表 */
+[data-testid="stMarkdownContainer"] ul,
+[data-testid="stMarkdownContainer"] ol {
+    padding-left: 1.4rem;
+}
+
+[data-testid="stMarkdownContainer"] li {
+    margin: 0.18rem 0;
+    line-height: 1.7;
+}
+
+/* divider 更精致 */
+hr {
+    border: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(16,38,63,0.18) 24%, rgba(16,38,63,0.18) 76%, transparent);
+    margin: 1.4rem 0;
+}
+
+section[data-testid="stSidebar"] hr {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18) 50%, transparent);
+}
 </style>
 """)
 
@@ -984,13 +1577,13 @@ PARAM_HELP = {
     },
     "basedir": {
         "desc": "日志基目录",
-        "help": "保存训练输出、检查点和渲染结果的目录",
+        "help": "保存重建输出、检查点和渲染结果的目录",
         "type": "path",
         "default": "./logs/"
     },
     "tbdir": {
         "desc": "TensorBoard日志目录",
-        "help": "保存TensorBoard日志用于实时训练监控",
+        "help": "保存TensorBoard日志用于实时重建监控",
         "type": "path",
         "default": "./tb_logs/"
     },
@@ -1041,10 +1634,10 @@ PARAM_HELP = {
         "tips": "提高渲染质量，但增加计算量"
     },
     
-    # 训练参数
+    # 重建参数
     "N_iters": {
         "desc": "总迭代次数",
-        "help": "完整的训练迭代数",
+        "help": "完整的重建迭代数",
         "type": "int",
         "default": 50000,
         "range": [10000, 200000],
@@ -1052,7 +1645,7 @@ PARAM_HELP = {
     },
     "N_rand": {
         "desc": "每步采样射线数",
-        "help": "每个训练步骤采样的随机射线数（批大小）",
+        "help": "每个优化步骤采样的随机射线数（批大小）",
         "type": "int",
         "default": 4096,
         "range": [1024, 8192],
@@ -1317,7 +1910,7 @@ def _to_bool(value, default=False):
 
 
 def _normalize_kernel_type(value):
-    """兼容 UI 别名与训练脚本真实 kernel_type"""
+    """兼容 UI 别名与重建脚本真实 kernel_type"""
     normalized = str(value).strip().lower()
     if normalized in {"", "kernel", "deformablesparsekernel"}:
         return "deformablesparsekernel"
@@ -1382,7 +1975,7 @@ def get_experiment_config_path(exp_name):
 
 def build_training_command(config_path, config_data, *, num_gpus=1, save_ckpt=True, render_testset=True,
                            enable_tb=True, auto_continue=False):
-    """根据 UI 选项构建训练命令"""
+    """根据 UI 选项构建重建命令"""
     command = [
         sys.executable, "run_nerf.py",
         "--config", str(config_path),
@@ -1617,7 +2210,7 @@ def _extract_latest_iter_from_ckpt(exp_dir: Path):
 
 
 def parse_latest_train_iter_from_log(exp_name):
-    """从 training.log 中提取最近一次训练迭代"""
+    """从 training.log 中提取最近一次重建迭代"""
     log_path = get_experiment_log_path(exp_name)
     if not log_path.exists():
         return None
@@ -1716,7 +2309,7 @@ def get_latest_metric_record(exp_name):
 
 
 def infer_training_status(exp_name):
-    """基于实验目录推断训练状态"""
+    """基于实验目录推断重建状态"""
     exp_dir = get_experiment_dir(exp_name)
     if not exp_dir.exists():
         return {
@@ -1743,7 +2336,7 @@ def infer_training_status(exp_name):
     log_issue = detect_training_log_issue(exp_name)
 
     if latest_ckpt_iter > 0:
-        label = "训练中/已训练"
+        label = "重建中/已重建"
         detail = f"检测到最新检查点: iter={latest_ckpt_iter}"
         is_running_hint = True
     elif has_outputs:
@@ -1751,19 +2344,19 @@ def infer_training_status(exp_name):
         detail = "检测到图像输出，但尚未检测到标准检查点文件"
         is_running_hint = True
     elif log_issue:
-        label = "训练中断/日志异常"
-        detail = f"训练日志显示异常: {log_issue}"
+        label = "重建中断/日志异常"
+        detail = f"重建日志显示异常: {log_issue}"
         is_running_hint = False
     elif latest_log_iter > 0:
-        label = "训练进行中（尚未保存检查点）"
-        detail = f"日志显示最近训练到 iter={latest_log_iter}，但尚未到首次保存检查点/测试图的时机"
+        label = "重建进行中（尚未保存检查点）"
+        detail = f"日志显示最近迭代到 iter={latest_log_iter}，但尚未到首次保存检查点/测试图的时机"
         is_running_hint = True
     elif has_log:
-        label = "训练已启动/初始化中"
-        detail = "已检测到 training.log，但尚未出现训练迭代、检查点或测试图像"
+        label = "重建已启动/初始化中"
+        detail = "已检测到 training.log，但尚未出现重建迭代、检查点或测试图像"
         is_running_hint = True
     else:
-        label = "未检测到有效训练输出"
+        label = "未检测到有效重建输出"
         detail = "当前实验目录无检查点与渲染图像"
         is_running_hint = False
 
@@ -1957,7 +2550,7 @@ def get_experiment_args(exp_name):
 
 
 def get_experiment_log_path(exp_name):
-    """返回实验默认训练日志路径"""
+    """返回实验默认重建日志路径"""
     return get_experiment_dir(exp_name) / "training.log"
 
 
@@ -1975,7 +2568,7 @@ def _numeric_stem(path_obj):
 
 
 def list_source_images_by_exp(exp_name):
-    """根据实验参数定位训练输入图像序列（LLFF）"""
+    """根据实验参数定位场景输入图像序列（LLFF）"""
     args_data = get_experiment_args(exp_name)
     datadir = args_data.get("datadir", "")
     factor = _to_int(args_data.get("factor", 1), 1)
@@ -2052,7 +2645,7 @@ def build_source_image_records(exp_name):
 
 
 def list_result_videos(exp_name):
-    """返回实验可视化结果视频（优先 render_only 路径渲染，其次训练期间导出视频）"""
+    """返回实验可视化结果视频（优先 render_only 路径渲染，其次重建期间导出视频）"""
     exp_dir = get_experiment_dir(exp_name)
     if not exp_dir.exists():
         return []
@@ -2070,7 +2663,7 @@ def list_result_videos(exp_name):
         candidates.extend(sorted(result_dir.glob("*.mov")))
         candidates.extend(sorted(result_dir.glob("*.avi")))
 
-    # 训练过程中导出的 spiral 视频保存在实验根目录，按文件名倒序展示最近结果。
+    # 重建过程中导出的 spiral 视频保存在实验根目录，按文件名倒序展示最近结果。
     candidates.extend(sorted(exp_dir.glob("*_spiral_*_rgb.mp4"), reverse=True))
     candidates.extend(sorted(exp_dir.glob("*_spiral_*_disp.mp4"), reverse=True))
 
@@ -2086,7 +2679,7 @@ def list_result_videos(exp_name):
 
 
 def match_before_after_images(exp_name):
-    """根据文件名编号建立训练前后图像对"""
+    """根据文件名编号建立重建前后图像对"""
     before_images = list_source_images_by_exp(exp_name)
     after_images = list_result_images(exp_name)
     if not before_images or not after_images:
@@ -2124,11 +2717,11 @@ def build_image_pair_records(exp_name):
 
 
 def render_before_after_compare(exp_name, widget_key_prefix="compare"):
-    """渲染训练前后图像对比组件"""
+    """渲染重建前后图像对比组件"""
     pairs, before_images, after_images = match_before_after_images(exp_name)
 
     if not after_images:
-        st.info("未找到渲染结果图。请先训练并生成 testset 或 renderonly 输出。")
+        st.info("未找到渲染结果图。请先完成场景重建并生成 testset 或 renderonly 输出。")
         return
     if not before_images:
         st.info("未找到数据集原图。请检查该实验的 `args.txt` 中 datadir/factor 配置。")
@@ -2154,7 +2747,7 @@ def render_before_after_compare(exp_name, widget_key_prefix="compare"):
             key=f"{widget_key_prefix}_img_idx"
         )
         alpha = st.slider(
-            "融合滑块（0=原图，1=训练后）",
+            "融合滑块（0=原图，1=重建后）",
             min_value=0.0,
             max_value=1.0,
             value=0.5,
@@ -2175,9 +2768,9 @@ def render_before_after_compare(exp_name, widget_key_prefix="compare"):
 
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown(f"**训练前**: `{before_path.name}`")
+            st.markdown(f"**重建前**: `{before_path.name}`")
             st.image(before_img, width='stretch')
-            st.markdown(f"**训练后**: `{after_path.name}`")
+            st.markdown(f"**重建后**: `{after_path.name}`")
             st.image(after_img, width='stretch')
         with col2:
             st.markdown("**融合对比**")
@@ -2192,14 +2785,14 @@ def model_loader_page():
     """模型加载与场景结果查看页面"""
     render_section_intro(
         "🧠 模型加载与结果查看",
-        "按照 Deblur-NeRF 的场景级工作流，先选择已训练实验，再浏览指定视角的原图、重建结果、融合效果和差分细节。",
+        "按照 Deblur-NeRF 的场景级工作流，先选择已重建实验，再浏览指定视角的原图、重建结果、融合效果和差分细节。",
         tags=["场景模型", "视角浏览", "结果核验"],
     )
 
     render_info_box_content(
         title="页面说明",
         lines=[
-            "这里遵循 Deblur-NeRF 原始项目的工作方式：先加载一个已经训练完成的场景模型，再选择该场景中的某个视角，查看原图与模型渲染结果。",
+            "这里遵循 Deblur-NeRF 原始项目的工作方式：先加载一个已经重建完成的场景模型，再选择该场景中的某个视角，查看原图与模型渲染结果。",
             ("注意", "当前项目是场景级 NeRF，不做任意单张陌生图片的通用去模糊推理。"),
         ],
     )
@@ -2207,9 +2800,9 @@ def model_loader_page():
     exps = get_experiments()
     if not exps:
         render_empty_state(
-            "暂无可加载的训练模型",
-            "完成至少一次训练后，模型实验会出现在这里，用于按场景视角查看恢复效果。",
-            "先进入训练页启动一个实验",
+            "暂无可加载的场景模型",
+            "完成至少一次重建后，模型实验会出现在这里，用于按场景视角查看恢复效果。",
+            "先进入场景重建页启动一个实验",
         )
         return
 
@@ -2290,12 +2883,12 @@ def model_loader_page():
     render_info_box_content(
         title="工作方式",
         lines=[
-            "该功能使用训练好的场景模型和所选图片的相机位姿生成新结果图。",
-            ("适用范围", "请选择当前模型训练数据集里的图片；任意上传的陌生图片没有对应位姿，不能直接用 Deblur-NeRF 稳定处理。"),
+            "该功能使用已重建好的场景模型和所选图片的相机位姿生成新结果图。",
+            ("适用范围", "请选择当前模型场景数据集里的图片；任意上传的陌生图片没有对应位姿，不能直接用 Deblur-NeRF 稳定处理。"),
         ],
     )
     if not active_has_ckpt:
-        st.warning("当前实验还没有检测到 `.tar` 模型检查点。请先完成训练或保存检查点，再生成单张去模糊结果。")
+        st.warning("当前实验还没有检测到 `.tar` 模型检查点。请先完成重建或保存检查点，再生成单张去模糊结果。")
 
     col_select, col_settings = st.columns([2, 1])
     with col_select:
@@ -2417,7 +3010,7 @@ def model_loader_page():
                 else:
                     render_empty_state(
                         "模型尚不可推理",
-                        "检测到训练检查点后，这里会允许生成当前图片的去模糊结果。",
+                        "检测到重建检查点后，这里会允许生成当前图片的去模糊结果。",
                     )
     except Exception as e:
         st.error(f"单张结果展示失败: {e}")
@@ -2466,7 +3059,7 @@ def model_loader_page():
         ])
 
     st.divider()
-    st.markdown("### 训练结果展示")
+    st.markdown("### 重建结果展示")
 
     try:
         before_img = Image.open(selected_record["before_path"]).convert("RGB")
@@ -2483,7 +3076,7 @@ def model_loader_page():
             render_image_card_title(f"输入原图: {selected_record['before_name']}")
             st.image(before_img, width='stretch')
         with col2:
-            render_image_card_title(f"训练后结果图: {selected_record['after_name']}")
+            render_image_card_title(f"重建后结果图: {selected_record['after_name']}")
             st.image(after_img, width='stretch')
         with col3:
             render_image_card_title("融合预览")
@@ -2523,28 +3116,64 @@ def render_info_box_content(title=None, lines=None, box_class="info-box"):
         st.info(message)
 
 
+def _esc(value):
+    """最小化 HTML 转义，避免标题/描述中的 < & > 破坏布局。"""
+    text = "" if value is None else str(value)
+    return (
+        text.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+    )
+
+
 def render_quick_nav_card(icon, title, desc, meta):
-    """渲染首页快捷入口卡片。"""
-    with st.container(border=True):
-        st.markdown(f"### {icon} {title}")
-        st.write(desc)
-        st.caption(meta)
+    """渲染首页快捷入口卡片 (海报风)。"""
+    st.html(
+        f"""
+<div class="quick-nav-card">
+  <div class="quick-nav-card__icon">{_esc(icon)}</div>
+  <div class="quick-nav-card__title">{_esc(title)}</div>
+  <div class="quick-nav-card__desc">{_esc(desc)}</div>
+  <div class="quick-nav-card__meta">{_esc(meta)}</div>
+</div>
+"""
+    )
 
 
-def render_hero_section(title, subtitle, eyebrow="Research Workspace", tags=None, compact=False):
-    """渲染统一的页面头部区域。"""
-    with st.container(border=True):
-        st.caption(eyebrow)
-        if compact:
-            st.markdown(f"## {title}")
-        else:
-            st.markdown(f"# {title}")
-        st.write(subtitle)
-        if tags:
-            st.caption(" | ".join(tags))
+def render_hero_section(title, subtitle, eyebrow="Research Workspace", tags=None, compact=False, meta_chips=None):
+    """渲染统一的页面头部区域 (学术海报风)。"""
+    tag_html = ""
+    if tags:
+        pills = "".join(f'<span class="hero-tag">{_esc(tag)}</span>' for tag in tags)
+        tag_html = f'<div class="hero-tag-row">{pills}</div>'
+
+    meta_html = ""
+    if meta_chips:
+        chips = "".join(
+            f'<div class="hero-meta-chip">'
+            f'<div class="hero-meta-chip__label">{_esc(label)}</div>'
+            f'<div class="hero-meta-chip__value">{_esc(value)}</div>'
+            f'</div>'
+            for label, value in meta_chips
+        )
+        meta_html = f'<div class="hero-meta-row">{chips}</div>'
+
+    compact_class = " compact" if compact else ""
+    heading_tag = "h2" if compact else "h1"
+    st.html(
+        f"""
+<div class="hero-shell{compact_class}">
+  <span class="hero-eyebrow">{_esc(eyebrow)}</span>
+  <{heading_tag} class="hero-title">{_esc(title)}</{heading_tag}>
+  <p class="hero-subtitle">{_esc(subtitle)}</p>
+  {tag_html}
+  {meta_html}
+</div>
+"""
+    )
 
 
-def render_section_intro(title, subtitle, tags=None):
+def render_section_intro(title, subtitle, tags=None, meta_chips=None):
     """渲染统一的功能页标题区。"""
     render_hero_section(
         title=title,
@@ -2552,12 +3181,13 @@ def render_section_intro(title, subtitle, tags=None):
         eyebrow="Research Module",
         tags=tags or [],
         compact=True,
+        meta_chips=meta_chips,
     )
 
 
 def render_subsection_title(title):
-    """渲染二级功能标题。"""
-    st.markdown(f"### {title}")
+    """渲染带前置色条的二级功能标题。"""
+    st.html(f'<div class="subsection-header">{_esc(title)}</div>')
 
 
 def render_soft_panel_text(text):
@@ -2567,39 +3197,46 @@ def render_soft_panel_text(text):
 
 
 def render_empty_state(title, body, hint=None):
-    """渲染统一空状态提示。"""
-    with st.container(border=True):
-        st.markdown(f"**{title}**")
-        st.write(str(body))
-        if hint:
-            st.caption(str(hint))
+    """渲染统一空状态提示 (学术风)。"""
+    hint_html = f'<div class="empty-state__hint">→ {_esc(hint)}</div>' if hint else ""
+    st.html(
+        f"""
+<div class="empty-state">
+  <div class="empty-state__title">{_esc(title)}</div>
+  <div class="empty-state__body">{_esc(body)}</div>
+  {hint_html}
+</div>
+"""
+    )
 
 
 def render_status_pill(text, *, warning=False):
-    """渲染状态提示。"""
-    if warning:
-        st.warning(str(text))
-    else:
-        st.success(str(text))
+    """渲染状态徽标。"""
+    cls = "status-chip warning" if warning else "status-chip"
+    st.html(f'<span class="{cls}">{_esc(text)}</span>')
 
 
 def render_image_card_title(title):
     """渲染媒体卡片标题。"""
-    st.markdown(f"**{title}**")
+    st.html(f'<div class="image-card-title">{_esc(title)}</div>')
 
 
 def render_workflow_strip(steps):
-    """使用 Streamlit 原生组件渲染首页研究流程。"""
+    """渲染首页研究流程条带。"""
     if not steps:
         return
 
-    cols = st.columns(len(steps))
-    for idx, step in enumerate(steps, start=1):
-        with cols[idx - 1]:
-            with st.container(border=True):
-                st.caption(f"Step {idx:02d}")
-                st.markdown(f"**{step['title']}**")
-                st.write(step["desc"])
+    items = "".join(
+        f"""
+<div class="workflow-step">
+  <div class="workflow-step__index">{idx:02d}</div>
+  <div class="workflow-step__title">{_esc(step['title'])}</div>
+  <div class="workflow-step__desc">{_esc(step['desc'])}</div>
+</div>
+"""
+        for idx, step in enumerate(steps, start=1)
+    )
+    st.html(f'<div class="workflow-strip">{items}</div>')
 
 
 def render_insight_cards(cards):
@@ -2607,28 +3244,34 @@ def render_insight_cards(cards):
     if not cards:
         return
 
-    cols = st.columns(min(3, len(cards)))
-    for idx, card in enumerate(cards):
-        with cols[idx % len(cols)]:
-            with st.container(border=True):
-                st.caption(card["kicker"])
-                st.markdown(f"**{card['title']}**")
-                st.write(card["body"])
+    items = "".join(
+        f"""
+<div class="insight-card">
+  <div class="insight-card__kicker">{_esc(card['kicker'])}</div>
+  <div class="insight-card__title">{_esc(card['title'])}</div>
+  <div class="insight-card__body">{_esc(card['body'])}</div>
+</div>
+"""
+        for card in cards
+    )
+    st.html(f'<div class="insight-grid">{items}</div>')
 
 
 def render_model_fact_grid(facts):
-    """使用 Streamlit 原生组件渲染模型/实验元信息，避免 HTML 片段外露。"""
+    """渲染模型/实验元信息网格 (海报风)。"""
     if not facts:
         return
 
-    for start in range(0, len(facts), 2):
-        cols = st.columns(2)
-        for col, fact in zip(cols, facts[start:start + 2]):
-            label, value = fact
-            with col:
-                with st.container(border=True):
-                    st.caption(str(label))
-                    st.write(str(value))
+    cells = "".join(
+        f"""
+<div class="fact-cell">
+  <div class="fact-cell__label">{_esc(label)}</div>
+  <div class="fact-cell__value">{_esc(value)}</div>
+</div>
+"""
+        for label, value in facts
+    )
+    st.html(f'<div class="fact-grid">{cells}</div>')
 
 
 def style_plotly_figure(fig, *, height=400, show_legend=True):
@@ -2674,18 +3317,34 @@ def style_plotly_figure(fig, *, height=400, show_legend=True):
 
 def home_page():
     """首页 - 仪表板"""
+    configs = get_config_files()
+    exps = get_experiments()
+    gpu_info = get_gpu_info()
+    stats = get_system_stats()
+
+    if gpu_info and gpu_info.get("name"):
+        gpu_label = gpu_info["name"].strip().split()[0] or "GPU"
+    else:
+        gpu_label = "未检测"
+
     render_hero_section(
         title=PROJECT_TITLE,
-        subtitle="面向神经辐射场与运动感知去模糊研究的统一可视化工作台，覆盖配置管理、训练监控、模型查看、结果推理与实验分析。",
+        subtitle="面向神经辐射场与运动感知去模糊研究的统一可视化工作台，覆盖配置管理、重建监控、模型查看、结果推理与实验分析。",
         eyebrow="NeRF Deblurring Research Platform",
-        tags=["配置到训练", "结果可视化", "实验对比分析"],
+        tags=["配置到重建", "结果可视化", "实验对比分析"],
+        meta_chips=[
+            ("配置基线", f"{len(configs)} 份"),
+            ("实验产物", f"{len(exps)} 组"),
+            ("GPU 加速", gpu_label),
+            ("CPU 利用", f"{stats.get('cpu', 0):.0f}%"),
+        ],
     )
 
     render_subsection_title("研究流程")
     render_workflow_strip([
         {"title": "准备数据", "desc": "整理 LLFF 场景目录、图像序列与相机位姿。"},
-        {"title": "建立配置", "desc": "选择预设或编辑关键训练、采样与模糊核参数。"},
-        {"title": "启动训练", "desc": "后台执行 Deblur-NeRF，记录日志、检查点和评估结果。"},
+        {"title": "建立配置", "desc": "选择预设或编辑关键重建、采样与模糊核参数。"},
+        {"title": "启动重建", "desc": "后台执行 Deblur-NeRF，记录日志、检查点和评估结果。"},
         {"title": "查看模型", "desc": "按场景视角浏览原图、恢复图、融合图和差分细节。"},
         {"title": "分析结论", "desc": "用 PSNR、SSIM、LPIPS 与可视对比辅助论文实验总结。"},
     ])
@@ -2694,14 +3353,14 @@ def home_page():
     render_subsection_title("🚀 快速开始")
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        render_quick_nav_card("⚙️", "配置管理", "创建、加载和编辑训练配置，整理实验参数基线。", "Step 01")
+        render_quick_nav_card("⚙️", "配置管理", "创建、加载和编辑重建配置，整理实验参数基线。", "Step 01")
         if st.button("⚙️ 配置管理", width='stretch'):
             _set_page("配置")
             st.rerun()
     with col2:
-        render_quick_nav_card("🚀", "训练系统", "启动训练任务，跟踪实验进度，并查看关键曲线变化。", "Step 02")
-        if st.button("🚀 训练系统", width='stretch'):
-            _set_page("训练")
+        render_quick_nav_card("🚀", "场景重建", "启动重建任务，跟踪实验进度，并查看关键曲线变化。", "Step 02")
+        if st.button("🚀 场景重建", width='stretch'):
+            _set_page("场景重建")
             st.rerun()
     with col3:
         render_quick_nav_card("🎨", "推理结果", "渲染测试集或路径视频，并快速查看生成的图像与视频结果。", "Step 03")
@@ -2714,7 +3373,7 @@ def home_page():
             _set_page("分析")
             st.rerun()
     with col5:
-        render_quick_nav_card("🧠", "模型加载", "加载训练完成的模型，逐视角检查恢复效果和结构细节。", "Step 05")
+        render_quick_nav_card("🧠", "模型加载", "加载重建完成的模型，逐视角检查恢复效果和结构细节。", "Step 05")
         if st.button("🧠 模型加载", width='stretch'):
             _set_page("模型")
             st.rerun()
@@ -2774,7 +3433,7 @@ def home_page():
             else:
                 render_empty_state(
                     "暂无实验数据",
-                    "训练完成后，这里会自动显示最近实验、产物大小与模型输出概览。",
+                    "重建完成后，这里会自动显示最近实验、产物大小与模型输出概览。",
                     "先去配置页建立一个实验配置",
                 )
     
@@ -2782,7 +3441,7 @@ def home_page():
     
     # 提示
     render_subsection_title("💡 使用建议")
-    render_soft_panel_text("推荐流程：先建立配置基线，再启动训练，随后在模型与推理模块核查可视结果，最后进入分析页汇总定量指标。若 GPU 显存吃紧，优先降低 N_rand 与 chunk。")
+    render_soft_panel_text("推荐流程：先建立配置基线，再启动重建，随后在模型与推理模块核查可视结果，最后进入分析页汇总定量指标。若 GPU 显存吃紧，优先降低 N_rand 与 chunk。")
     render_insight_cards([
         {
             "kicker": "First Run",
@@ -2792,7 +3451,7 @@ def home_page():
         {
             "kicker": "Quality",
             "title": "再升质量参数",
-            "body": "确认训练正常后再提高 factor、N_samples、netwidth 等参数，避免直接把显存拉爆。",
+            "body": "确认重建迭代稳定后再提高 factor、N_samples、netwidth 等参数，避免直接把显存拉爆。",
         },
         {
             "kicker": "Paper Ready",
@@ -2805,7 +3464,7 @@ def config_page():
     """配置管理页面"""
     render_section_intro(
         "⚙️ 配置",
-        "在这里维护实验配置、快速套用预设，并查看关键参数的解释与推荐范围，帮助训练过程更稳定地复现。",
+        "在这里维护实验配置、快速套用预设，并查看关键参数的解释与推荐范围，帮助重建过程更稳定地复现。",
         tags=["预设模板", "参数编辑", "配置说明"],
     )
 
@@ -2890,9 +3549,9 @@ def config_page():
                     "数据集类型",
                     SUPPORTED_DATASET_TYPES,
                     key="dataset_type",
-                    help="当前 Deblur-NeRF 项目训练脚本只实现了 LLFF 数据格式。"
+                    help="当前 Deblur-NeRF 项目重建脚本只实现了 LLFF 数据格式。"
                 )
-                st.caption("训练脚本当前仅支持 `llff`，选择其他类型会直接退出。")
+                st.caption("重建脚本当前仅支持 `llff`，选择其他类型会直接退出。")
         
         with st.expander("🧠 网络架构"):
             col1, col2 = st.columns(2)
@@ -2927,7 +3586,7 @@ def config_page():
                 help=PARAM_HELP['use_viewdirs']['help']
             )
         
-        with st.expander("⚡ 训练参数"):
+        with st.expander("⚡ 重建参数"):
             col1, col2 = st.columns(2)
             with col1:
                 N_iters = st.slider(
@@ -3150,7 +3809,7 @@ def config_page():
         categories = {
             "基本设置": ["expname", "datadir", "basedir", "factor"],
             "网络架构": ["netdepth", "netwidth", "netdepth_fine", "netwidth_fine", "use_viewdirs"],
-            "训练参数": ["N_iters", "N_rand", "lrate", "lrate_decay", "chunk"],
+            "重建参数": ["N_iters", "N_rand", "lrate", "lrate_decay", "chunk"],
             "采样参数": ["N_samples", "N_importance", "perturb"],
             "模糊核": ["kernel_type", "kernel_ptnum", "kernel_hwindow"],
         }
@@ -3182,23 +3841,23 @@ def config_page():
                         st.divider()
 
 def training_page():
-    """训练管理页面"""
+    """场景重建页面"""
     render_section_intro(
-        "🚀 训练",
-        "集中管理训练任务启动、过程监控与曲线分析，让实验状态、日志输出和核心指标变化更直观。",
-        tags=["训练启动", "状态监控", "曲线分析"],
+        "🚀 场景重建",
+        "集中管理重建任务启动、过程监控与曲线分析，让实验状态、日志输出和核心指标变化更直观。",
+        tags=["重建启动", "状态监控", "曲线分析"],
     )
     
-    tab1, tab2, tab3 = st.tabs(["🎯 启动训练", "📊 训练监控", "📈 曲线分析"])
+    tab1, tab2, tab3 = st.tabs(["🎯 启动重建", "📊 重建监控", "📈 曲线分析"])
     
     with tab1:
-        render_subsection_title("启动训练任务")
+        render_subsection_title("启动重建任务")
         
         configs = get_config_files()
         if not configs:
             render_empty_state(
                 "暂无可用配置文件",
-                "训练启动需要一个 configs 下的 .txt 配置文件。你可以先从预设模板创建配置。",
+                "重建启动需要一个 configs 下的 .txt 配置文件。你可以先从预设模板创建配置。",
                 "先进入配置页创建配置",
             )
         else:
@@ -3217,26 +3876,26 @@ def training_page():
                 
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.markdown("**训练设置**")
-                    save_ckpt = st.checkbox("定期保存检查点", value=True, help="在指定间隔保存训练权重")
-                    render_test = st.checkbox("训练后渲染测试集", value=True, help="训练完成后自动渲染测试集")
+                    st.markdown("**重建设置**")
+                    save_ckpt = st.checkbox("定期保存检查点", value=True, help="在指定间隔保存重建权重")
+                    render_test = st.checkbox("重建后渲染测试集", value=True, help="重建完成后自动渲染测试集")
                     num_gpus = st.number_input("使用GPU数", value=1, min_value=1, max_value=8, help="使用多GPU加速")
                 
                 with col2:
                     st.markdown("**监控设置**")
-                    enable_tb = st.checkbox("启用TensorBoard", value=True, help="记录训练指标")
+                    enable_tb = st.checkbox("启用TensorBoard", value=True, help="记录重建指标")
                     log_level = st.selectbox("日志级别", ["INFO", "DEBUG", "WARNING"], index=0, key="log_level_select")
-                    auto_continue = st.checkbox("中断后自动继续", value=False, help="从最新检查点继续训练")
+                    auto_continue = st.checkbox("中断后自动继续", value=False, help="从最新检查点继续重建")
                 
                 st.divider()
                 
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    if st.button("🚀 启动训练", width='stretch', key="start_training"):
+                    if st.button("🚀 启动重建", width='stretch', key="start_training"):
                         # 验证配置
                         errors, warnings = validate_config(config_data)
                         if errors:
-                            st.error("❌ 配置验证失败，无法启动训练:")
+                            st.error("❌ 配置验证失败，无法启动重建:")
                             for error in errors:
                                 st.error(f"  • {error}")
                         else:
@@ -3253,13 +3912,13 @@ def training_page():
                                 )
                                 log_path = Path(config_data.get("basedir", "./logs/")) / config_data.get("expname", "experiment") / "training.log"
 
-                                with st.spinner("正在启动训练进程..."):
+                                with st.spinner("正在启动重建进程..."):
                                     pid = _launch_background_process(command_args, log_path)
                                     time.sleep(2)  # 等待进程启动
                                 
-                                st.success("✅ 训练已启动！")
+                                st.success("✅ 重建已启动！")
                                 st.info(f"""
-                                **训练信息:**
+                                **重建信息:**
                                 - 配置: {selected_config}
                                 - 实验: {config_data.get('expname', 'N/A')}
                                 - 数据: {config_data.get('datadir', 'N/A')}
@@ -3269,7 +3928,7 @@ def training_page():
                                 **监控方式:**
                                 1. 查看日志: `tail -f {log_path}`
                                 2. TensorBoard: `tensorboard --logdir {config_data.get('tbdir', './tb_logs/')}`
-                                3. 切换到'训练监控'标签页 (需要刷新)
+                                3. 切换到'重建监控'标签页 (需要刷新)
                                 """)
                                 st.code(_format_shell_command(command_args), language="bash")
                                 if warnings:
@@ -3277,7 +3936,7 @@ def training_page():
                                         st.warning(f"⚠️ {warning}")
                                 
                             except Exception as e:
-                                st.error(f"❌ 启动训练失败: {str(e)}")
+                                st.error(f"❌ 启动重建失败: {str(e)}")
                 
                 with col2:
                     if st.button("📖 查看命令", width='stretch'):
@@ -3292,7 +3951,7 @@ def training_page():
                                 auto_continue=auto_continue,
                             )
                             st.code(_format_shell_command(command_args), language="bash")
-                            st.caption(f"当前日志级别选项为 `{log_level}`，训练脚本本身未提供独立日志级别参数。")
+                            st.caption(f"当前日志级别选项为 `{log_level}`，重建脚本本身未提供独立日志级别参数。")
                 
                 with col3:
                     if st.button("✅ 验证配置", width='stretch'):
@@ -3307,15 +3966,15 @@ def training_page():
                                     st.warning(f"⚠️ {warning}")
     
     with tab2:
-        render_subsection_title("训练实时监控")
+        render_subsection_title("重建实时监控")
         
         exps = get_experiments()
         
         if not exps:
             render_empty_state(
-                "暂无训练实验",
-                "还没有检测到实验目录。启动训练后，这里会展示进度、检查点、日志和指标曲线。",
-                "先在启动训练页选择配置",
+                "暂无重建实验",
+                "还没有检测到实验目录。启动重建后，这里会展示进度、检查点、日志和指标曲线。",
+                "先在启动重建页选择配置",
             )
         else:
             selected_exp = st.selectbox(
@@ -3344,7 +4003,7 @@ def training_page():
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown("**📊 训练指标**")
+                st.markdown("**📊 重建指标**")
                 metric_points = parse_test_metrics(selected_exp)
                 if metric_points:
                     if _plotly_is_available():
@@ -3369,12 +4028,12 @@ def training_page():
                 else:
                     render_empty_state(
                         "暂无测试指标",
-                        "暂未找到 test_metrics.txt。训练产生测试集评估后，这里会显示 PSNR 曲线。",
+                        "暂未找到 test_metrics.txt。重建过程产出测试集评估后，这里会显示 PSNR 曲线。",
                         "等待 i_testset 周期产出",
                     )
             
             with col2:
-                st.markdown("**🎯 训练状态**")
+                st.markdown("**🎯 重建状态**")
                 progress_percent = status["progress_percent"]
                 col_status, col_refresh = st.columns([3, 1])
                 with col_status:
@@ -3394,15 +4053,15 @@ def training_page():
                 )
     
     with tab3:
-        render_subsection_title("训练曲线分析")
+        render_subsection_title("重建曲线分析")
         
         exps = get_experiments()
         
         if not exps:
             render_empty_state(
                 "暂无实验数据",
-                "训练实验生成后，曲线分析会自动读取 test_metrics.txt 并支持多实验对比。",
-                "先完成至少一个训练实验",
+                "重建实验生成后，曲线分析会自动读取 test_metrics.txt 并支持多实验对比。",
+                "先完成至少一个重建实验",
             )
         else:
             selected_exps = st.multiselect(
@@ -3454,7 +4113,7 @@ def training_page():
                             render_empty_state(
                                 "暂无 PSNR 对比数据",
                                 "未找到可用于对比的 PSNR 指标，请先生成 test_metrics.txt。",
-                                "训练到测试集评估周期后再查看",
+                                "重建迭代到测试集评估周期后再查看",
                             )
                     else:
                         if go is not None:
@@ -3528,8 +4187,8 @@ def inference_page():
         if not exps:
             render_empty_state(
                 "暂无可推理实验",
-                "还没有检测到已训练实验。推理需要实验目录中的 config.txt 或 args.txt 才能自动构建命令。",
-                "先完成训练或检查 logs 目录",
+                "还没有检测到已重建实验。推理需要实验目录中的 config.txt 或 args.txt 才能自动构建命令。",
+                "先完成重建或检查 logs 目录",
             )
         else:
             selected_exp = st.selectbox(
@@ -3612,8 +4271,8 @@ def inference_page():
         if not exps:
             render_empty_state(
                 "暂无实验",
-                "训练或推理产物会在这里以图像网格和视频列表展示。",
-                "先启动一次训练",
+                "场景重建或推理产物会在这里以图像网格和视频列表展示。",
+                "先启动一次场景重建",
             )
         else:
             selected_exp = st.selectbox(
@@ -3671,14 +4330,14 @@ def inference_page():
                     st.info(f"还有 {len(videos) - 4} 个视频未展示")
 
     elif inference_section == "🔍 前后对比":
-        render_subsection_title("训练前后图像对比")
+        render_subsection_title("重建前后图像对比")
         st.caption("自动匹配实验输入图像与渲染输出图，支持融合滑块与差分查看。")
         exps = get_experiments()
         if not exps:
             render_empty_state(
                 "暂无实验",
                 "前后对比需要实验目录、输入图像和渲染输出共同存在。",
-                "先训练并生成 testset 输出",
+                "先完成场景重建并生成 testset 输出",
             )
         else:
             selected_exp = st.selectbox(
@@ -3782,7 +4441,7 @@ def analysis_page():
             render_empty_state(
                 "需要至少 2 个实验",
                 "并行对比会把两组实验的同索引结果图与最新指标放在同一视野中。",
-                "训练第二组实验后再回来",
+                "再重建一组实验后回来",
             )
         else:
             col1, col2 = st.columns(2)
@@ -3843,7 +4502,7 @@ def analysis_page():
             render_empty_state(
                 "暂无实验数据",
                 "性能分析会自动汇总实验大小、检查点、输出图像和最新评估指标。",
-                "先完成一次训练",
+                "先完成一次场景重建",
             )
         else:
             st.markdown("#### 📋 实验统计表")
@@ -3895,39 +4554,43 @@ def main():
         st.session_state.page_sync_pending = False
 
     with st.sidebar:
-        with st.container(border=True):
-            st.caption("Research Console")
-            st.markdown(f"**{PROJECT_TITLE}**")
-            st.write("配置、训练、推理、模型查看与实验分析的一体化可视化工作台")
-        st.divider()
-        
-        st.markdown("### 📌 导航菜单")
+        st.html(
+            f"""
+<div class="sidebar-brand">
+  <div class="sidebar-brand__eyebrow">Research Console</div>
+  <div class="sidebar-brand__title">{_esc(PROJECT_TITLE)}</div>
+  <div class="sidebar-brand__meta">配置 · 场景重建 · 推理 · 模型 · 分析<br/>一体化可视化工作台</div>
+</div>
+"""
+        )
+
+        st.markdown("### 导航菜单")
         page = st.radio(
             "选择页面",
-            ["首页", "配置", "训练", "推理", "模型", "分析"],
+            ["首页", "配置", "场景重建", "推理", "模型", "分析"],
             key="sidebar_page",
             label_visibility="collapsed"
         )
         st.session_state.page = page
-        
+
         st.divider()
-        st.markdown("### 💻 系统信息")
-        
+        st.markdown("### 系统信息")
+
         stats = get_system_stats()
         if stats:
-            st.progress(stats['cpu'] / 100, text=f"CPU: {stats['cpu']:.0f}%")
-            st.progress(stats['memory'] / 100, text=f"内存: {stats['memory']:.0f}%")
-        
+            st.progress(stats['cpu'] / 100, text=f"CPU · {stats['cpu']:.0f}%")
+            st.progress(stats['memory'] / 100, text=f"内存 · {stats['memory']:.0f}%")
+
         gpu_info = get_gpu_info()
         if gpu_info:
-            st.markdown(f"**GPU**: {gpu_info['name'][:20]}...")
-            st.progress(gpu_info['util'] / 100, text=f"用率: {gpu_info['util']:.0f}%")
+            st.markdown(f"**GPU** · {gpu_info['name'][:24]}")
+            st.progress(gpu_info['util'] / 100, text=f"利用率 · {gpu_info['util']:.0f}%")
         else:
-            st.caption("GPU: 不可用")
-        
+            st.caption("GPU · 不可用")
+
         st.divider()
-        st.markdown("### 📊 项目统计")
-        
+        st.markdown("### 项目统计")
+
         col1, col2 = st.columns(2)
         with col1:
             configs = get_config_files()
@@ -3935,16 +4598,16 @@ def main():
         with col2:
             exps = get_experiments()
             st.metric("实验", len(exps))
-        
+
         st.divider()
-        st.caption(f"v2.0 Enhanced | {datetime.now().strftime('%Y-%m-%d')}")
+        st.caption(f"v2.0 Enhanced · {datetime.now().strftime('%Y-%m-%d')}")
     
     # 路由
     if st.session_state.page == "首页":
         home_page()
     elif st.session_state.page == "配置":
         config_page()
-    elif st.session_state.page == "训练":
+    elif st.session_state.page == "场景重建":
         training_page()
     elif st.session_state.page == "推理":
         inference_page()
